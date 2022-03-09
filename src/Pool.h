@@ -59,7 +59,7 @@ ContainerPtr Pool::add_container(const std::string &name)
 						       &container_uuid, NULL));
 	}
 
-	return std::make_unique<Container>(container_uuid);
+	return std::make_unique<Container>(container_uuid, pool_handle_);
 }
 
 // FIXME: Removin is not working and I dont rly know why
