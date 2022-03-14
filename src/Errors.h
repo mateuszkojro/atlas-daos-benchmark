@@ -5,35 +5,43 @@
 
 #include <daos.h>
 #include <daos_errno.h>
+#include <string>
 
 class DaosError;
 
 struct Position {
-	Position(std::string func) : func(func) {}
-	int         line;
-	std::string file;
-	std::string func;
+  Position(std::string file, int line, std::string func)
+      : file(file), line(line), func(func) {}
+  std::string file;
+  int line;
+  std::string func;
 };
 
-#define DAOS_CHECK(code)                                                                           \
-	do {                                                                                       \
-		if (code != 0) {                                                                   \
-			throw DaosError(code, Position(__func__));                                 \
-		}                                                                                  \
-	} while (0)
+#define GET_CODE_INFO                                                          \
+  { __FILE__, __LINE__, __PRETTY_FUNCTION__ }
 
-class DaosError : virtual public std::runtime_error
-{
-      public:
-	DaosError(int error_code, Position position)
-	    : std::runtime_error(d_errstr(error_code)), error_code_(error_code)
-	{
-	}
+#define DAOS_CHECK(command)                                                    \
+  do {                                                                         \
+    int code = command;                                                        \
+    if (code != DER_SUCCESS) {                                                 \
+      throw DaosError(code,                                                    \
+                      Position(__FILE__, __LINE__, __PRETTY_FUNCTION__));      \
+    }                                                                          \
+  } while (0)
 
-	int get_error_code() const { return error_code_; }
+class DaosError : virtual public std::runtime_error {
+public:
+  DaosError(int error_code, Position position)
+      : std::runtime_error(std::string(d_errstr(error_code)) + ": " +
+                           std::string(d_errdesc(error_code)) + " at " +
+                           position.file + ":" + std::to_string(position.line) +
+                           " " + position.func),
+        error_code_(error_code) {}
 
-      private:
-	int error_code_;
+  int get_error_code() const { return error_code_; }
+
+private:
+  int error_code_;
 };
 
 #endif // !MK_ERRORS_H
