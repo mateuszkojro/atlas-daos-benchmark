@@ -41,7 +41,7 @@ Pool::~Pool() { clean_up(); }
 void Pool::connect()
 {
 	unsigned flags = DAOS_PC_RW;
-	DAOS_CHECK(daos_pool_connect((const char *)pool_uuid_, nullptr, flags, &pool_handle_,
+	DAOS_CHECK(daos_pool_connect(pool_uuid_.raw(), nullptr, flags, &pool_handle_,
 				     nullptr, nullptr));
 }
 
@@ -49,8 +49,8 @@ void Pool::clean_up() { DAOS_CHECK(daos_pool_disconnect(pool_handle_, nullptr));
 
 ContainerPtr Pool::add_container(const std::string &name)
 {
+	// daos_prop_t cont_prop;
 	uuid_t      container_uuid;
-	daos_prop_t cont_prop;
 
 	if (name.empty()) {
 		DAOS_CHECK(daos_cont_create_cpp(pool_handle_, &container_uuid, nullptr, nullptr));
@@ -62,12 +62,11 @@ ContainerPtr Pool::add_container(const std::string &name)
 	return std::make_unique<Container>(container_uuid, pool_handle_);
 }
 
-// FIXME: Removin is not working and I dont rly know why
 void Pool::remove_container(ContainerPtr &ptr)
 {
 	bool force_destroy = true;
 	DAOS_CHECK(
-	    daos_cont_destroy(pool_handle_, (const char *)ptr->get_uuid(), force_destroy, NULL));
+	    daos_cont_destroy(pool_handle_, ptr->get_uuid().raw(), force_destroy, NULL));
 }
 
 #endif // !MK_POOL_H
