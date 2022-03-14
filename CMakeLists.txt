@@ -11,12 +11,15 @@ set(DAOS_DOCKER_IMG daos-client)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+add_compile_options(-fdiagnostics-color=always -Wall)
+
 add_executable(${TARGET} 
     src/benchmark.cxx 
     src/Pool.h 
     src/Container.h 
     src/Errors.h 
     src/types.h
+    src/KeyValue.h
 )
 
 target_include_directories(${TARGET} PUBLIC ${DAOS_INSTALL_DIR}/include )
