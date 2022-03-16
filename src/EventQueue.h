@@ -18,9 +18,9 @@ class EventQueue {
 public:
   EventQueue(size_t max_inflight);
   EventQueue(EventQueue &&) = default;
-  EventQueue(const EventQueue &) = default;
-  EventQueue &operator=(EventQueue &&) = default;
-  EventQueue &operator=(const EventQueue &) = default;
+  EventQueue(const EventQueue &) = delete;
+  EventQueue &operator=(EventQueue &&) = delete;
+  EventQueue &operator=(const EventQueue &) = delete;
   ~EventQueue();
 
   daos_event_t *get_event();
