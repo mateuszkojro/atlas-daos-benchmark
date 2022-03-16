@@ -1,13 +1,17 @@
 #ifndef MK_POOL_H
 #define MK_POOL_H
 
+#include <cstddef>
 #include <daos.h>
 #include <daos_errno.h>
 
 #include <memory>
+#include <string>
 
 #include "Container.h"
 #include "Errors.h"
+#include "daos_cont.h"
+#include "daos_types.h"
 #include "types.h"
 
 using ContainerPtr = std::unique_ptr<Container>;
@@ -16,14 +20,14 @@ class Pool
 {
       public:
 	Pool(UUID pool_uuid);
-	Pool(Pool &&)      = default;
-	Pool(const Pool &) = default;
-	Pool &operator=(Pool &&) = default;
-	Pool &operator=(const Pool &) = default;
+	Pool(Pool &&)      = delete;
+	Pool(const Pool &) = delete;
+	Pool &operator=(Pool &&) = delete;
+	Pool &operator=(const Pool &) = delete;
 	~Pool();
 
 	ContainerPtr add_container(const std::string &name = "");
-	ContainerPtr get_container(UUID uuid);
+	ContainerPtr get_container(const UUID& uuid);
 	void         remove_container(ContainerPtr &ptr);
 	void         connect();
 	void         clean_up();
@@ -60,6 +64,14 @@ ContainerPtr Pool::add_container(const std::string &name)
 	}
 
 	return std::make_unique<Container>(container_uuid, pool_handle_);
+}
+
+// TODO: not tested!
+ContainerPtr Pool::get_container(const UUID& uuid){
+	daos_handle_t container_handle;
+	int flags = 0;
+	DAOS_CHECK(daos_cont_open(pool_handle_, uuid.raw(), flags, &container_handle,NULL, NULL)); 
+	return std::make_unique<Container>(container_handle);
 }
 
 void Pool::remove_container(ContainerPtr &ptr)
