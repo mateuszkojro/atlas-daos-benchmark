@@ -8,10 +8,12 @@ project(DAOS-benchmark
 set(TARGET ${CMAKE_PROJECT_NAME})
 set(DAOS_INSTALL_DIR /home/mkojro/s/daos/install)
 set(DAOS_DOCKER_IMG daos-client)
+set(CMAKE_CXX_COMPILER clang++)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_compile_options(-fdiagnostics-color=always -Wall)
+add_compile_options(-ggdb -fdiagnostics-color=always) #-Wextra 
+add_compile_options(-Wall -Wno-comment -Wpedantic -Wno-c99-extensions -Wno-unused-private-field -Wno-c++98-compat-pedantic)
 
 add_executable(${TARGET} 
     src/benchmark.cxx 
@@ -20,6 +22,7 @@ add_executable(${TARGET}
     src/Errors.h 
     src/types.h
     src/KeyValue.h
+    src/Array.h
 )
 
 target_include_directories(${TARGET} PUBLIC ${DAOS_INSTALL_DIR}/include )
