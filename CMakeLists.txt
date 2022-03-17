@@ -17,10 +17,11 @@ add_compile_options(-Wall -Wno-comment -Wpedantic -Wno-c99-extensions -Wno-unuse
 
 add_executable(${TARGET} 
     src/benchmark.cxx 
-    src/Pool.h 
+    src/Pool.h src/Pool.cxx 
     src/Container.h src/Container.cxx
     src/Errors.h 
     src/types.h
+    src/EventQueue.h src/EventQueue.cxx
     src/KeyValue.h src/KeyValue.cxx
     src/DAOSObject.h src/DAOSObject.cxx
     src/Array.h src/Array.cxx
