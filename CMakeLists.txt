@@ -22,7 +22,8 @@ add_executable(${TARGET}
     src/Errors.h 
     src/types.h
     src/KeyValue.h
-    src/Array.h
+    src/DAOSObject.h src/DAOSObject.cxx
+    src/Array.h src/Array.cxx
 )
 
 target_include_directories(${TARGET} PUBLIC ${DAOS_INSTALL_DIR}/include )

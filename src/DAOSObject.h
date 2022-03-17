@@ -3,22 +3,18 @@
 
 #include "daos_types.h"
 class DAOSObject {
-public:
+ public:
   DAOSObject(daos_handle_t object_handle, daos_obj_id_t object_id);
-  DAOSObject(DAOSObject &&) = default;
-  DAOSObject(const DAOSObject &) = default;
-  DAOSObject &operator=(DAOSObject &&) = default;
-  DAOSObject &operator=(const DAOSObject &) = default;
-  ~DAOSObject();
+  DAOSObject(DAOSObject&&) = default;
+  DAOSObject(const DAOSObject&) = default;
+  DAOSObject& operator=(DAOSObject&&) = default;
+  DAOSObject& operator=(const DAOSObject&) = default;
+  ~DAOSObject() = default;
 
-private:
+ protected:
+  // FXIME: This handles should be closed
   daos_handle_t object_handle_;
   daos_obj_id_t object_id_;
 };
 
-DAOSObject::DAOSObject(daos_handle_t object_handle, daos_obj_id_t object_id)
-    : object_handle_(object_handle), object_id_(object_id) {}
-
-DAOSObject::~DAOSObject() {}
-
-#endif // MK_!DAOS_OBJECT_H
+#endif// MK_!DAOS_OBJECT_H
