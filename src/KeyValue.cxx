@@ -9,8 +9,9 @@ std::string random_string() {
   return std::to_string(index);
 }
 
-void KeyValue::put_raw(daos_event_t* event, const char* key, const char* value,
-					   size_t value_size) {
+void KeyValue::write_raw(const char* key, const char* value, size_t value_size,
+						 daos_event_t* event) {
+
   DAOS_CHECK(daos_kv_put(object_handle_, DAOS_TX_NONE, 0, key, value_size,
 						 value, event));
 }
@@ -19,11 +20,11 @@ void KeyValue::change_value_raw() {
   throw std::runtime_error("Not implemented");
 }
 
-void KeyValue::get_raw(daos_event_t* event, const char* key) {
+void KeyValue::read_raw(const char* key) {
   size_t buffer_size = 128;
   char value[128];
   DAOS_CHECK(daos_kv_get(object_handle_, DAOS_TX_NONE, 0, key, &buffer_size,
-						 &value, event));
+						 &value, NULL));
 
   std::cout << "Value: " << value << std::endl;
 }

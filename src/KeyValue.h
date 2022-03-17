@@ -21,9 +21,9 @@ class KeyValue : public DAOSObject {
   KeyValue& operator=(const KeyValue&) = default;
   ~KeyValue() = default;
 
-  void put_raw(daos_event_t* event, const char* key, const char* value,
-			   size_t value_size);
-  void get_raw(daos_event_t* event, const char* key);
+  void write_raw(const char* key, const char* value, size_t value_size,
+				 daos_event_t* event = NULL);
+  void read_raw(const char* key);
 
   void change_value_raw();
 
