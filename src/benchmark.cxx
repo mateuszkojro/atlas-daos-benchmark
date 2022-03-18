@@ -26,12 +26,12 @@ const int number_ok_events_to_save = 1000;
 const int event_size = CELL_SIZE;// MB(5);
 
 void test_kv(ContainerPtr& container, EventQueue& event_queue) {
-  auto object = container->create_kv_object();
+  auto key_value = container->create_kv_object();
 
   auto start = high_resolution_clock::now();
   for (int i = 0; i < number_ok_events_to_save; i++) {
-	object->write_raw(std::to_string(i).c_str(), "bb", event_size,
-					 event_queue.get_event());
+	key_value->write_raw(std::to_string(i).c_str(), "bb", event_size,
+						 event_queue.get_event());
   }
 
   event_queue.wait();
@@ -41,8 +41,8 @@ void test_kv(ContainerPtr& container, EventQueue& event_queue) {
 
   start = high_resolution_clock::now();
   for (int i = 0; i < number_ok_events_to_save; i++) {
-	object->write_raw(std::to_string(i + number_ok_events_to_save).c_str(), "bb",
-					 event_size, NULL);
+	key_value->write_raw(std::to_string(i + number_ok_events_to_save).c_str(),
+						 "bb", event_size, NULL);
   }
   end = high_resolution_clock::now();
   std::cout << "Without event queue:\t"
@@ -50,14 +50,14 @@ void test_kv(ContainerPtr& container, EventQueue& event_queue) {
 }
 
 void test_array(ContainerPtr& container, EventQueue& event_queue) {
-  auto object = container->create_array();
+  auto array = container->create_array();
 
-  char* array = new char[CELL_SIZE];
-  array[0] = 'A';
+  char* buffer = new char[CELL_SIZE];
+  buffer[0] = 'A';
 
   auto start = high_resolution_clock::now();
   for (int i = 0; i < number_ok_events_to_save; i++) {
-	object->write_raw(i, array);
+	array->write_raw(i, buffer);
   }
   auto end = high_resolution_clock::now();
   std::cout << "Array w/o eq:\t"
@@ -66,7 +66,7 @@ void test_array(ContainerPtr& container, EventQueue& event_queue) {
 
   start = high_resolution_clock::now();
   for (int i = 0; i < number_ok_events_to_save; i++) {
-	object->write_raw(i, array, event_queue.get_event());
+	array->write_raw(i, buffer, event_queue.get_event());
   }
   event_queue.wait();
   end = high_resolution_clock::now();

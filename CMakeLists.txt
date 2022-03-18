@@ -6,9 +6,8 @@ project(DAOS-benchmark
 )
 
 set(TARGET ${CMAKE_PROJECT_NAME})
-set(DAOS_INSTALL_DIR /home/mkojro/s/daos/install)
 set(DAOS_DOCKER_IMG daos-client)
-set(CMAKE_CXX_COMPILER clang++)
+# set(CMAKE_CXX_COMPILER clang-13)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -18,28 +17,13 @@ add_link_options(-fsanitize=address) # -fsanitize=address,thread,memory
 
 add_compile_options(-Wall -Wno-comment -Wpedantic -Wno-c99-extensions -Wno-unused-private-field -Wno-c++98-compat-pedantic)
 
+add_subdirectory(lib/daos-cxx)
 
-add_executable(${TARGET} 
-    src/benchmark.cxx 
-    src/Pool.h src/Pool.cxx 
-    src/Container.h src/Container.cxx
-    src/Errors.h 
-    src/types.h
-    src/EventQueue.h src/EventQueue.cxx
-    src/KeyValue.h src/KeyValue.cxx
-    src/DAOSObject.h src/DAOSObject.cxx
-    src/Array.h src/Array.cxx
-    src/UUID.h src/UUID.cxx
-)
 
-target_include_directories(${TARGET} PUBLIC ${DAOS_INSTALL_DIR}/include )
+add_executable(${TARGET} src/benchmark.cxx)
 
-target_link_libraries(${TARGET} PUBLIC 
-    ${DAOS_INSTALL_DIR}/lib64/libdaos.so 
-    ${DAOS_INSTALL_DIR}/lib64/libgurt.so 
-    ${DAOS_INSTALL_DIR}/lib64/libdaos_common.so 
-    /usr/lib64/libuuid.so
-)
+target_link_libraries(${TARGET} daos-cxx)
+target_include_directories(${TARGET} PUBLIC src/daos-cxx/include)
 
 add_custom_target(install_docker
     COMMAND docker cp ${TARGET} ${DAOS_DOCKER_IMG}:/
