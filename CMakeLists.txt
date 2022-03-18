@@ -12,8 +12,12 @@ set(CMAKE_CXX_COMPILER clang++)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_compile_options(-ggdb -fdiagnostics-color=always) #-Wextra 
+# Compiler flags for debuging
+add_compile_options(-ggdb -fdiagnostics-color=always -fsanitize=address -fno-omit-frame-pointer) #-Wextra -fsanitize=thread,memory
+add_link_options(-fsanitize=address) # -fsanitize=address,thread,memory
+
 add_compile_options(-Wall -Wno-comment -Wpedantic -Wno-c99-extensions -Wno-unused-private-field -Wno-c++98-compat-pedantic)
+
 
 add_executable(${TARGET} 
     src/benchmark.cxx 
