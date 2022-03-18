@@ -1,4 +1,6 @@
 #include "Container.h"
+#include "KeyValue.h"
+#include <memory>
 
 Container::Container(UUID uuid, daos_handle_t pool_handle) {
   DAOS_CHECK(daos_cont_open(pool_handle, uuid.raw(), DAOS_COO_RW,
@@ -17,7 +19,7 @@ Container::~Container() {
   }
 }
 
-KeyValue Container::create_kv_object() {
+KeyValuePtr Container::create_kv_object() {
 
   /**
    * TODO:
@@ -36,14 +38,10 @@ KeyValue Container::create_kv_object() {
   DAOS_CHECK(daos_kv_open(container_handle_, object_id, DAOS_OO_RW,
 						  &object_handle, NULL));
 
-  // FIXME: when destructor of kv is called object is destructed and everything
-  // goes away
-  KeyValue kv(object_handle, object_id);
-  objects_.push_back(kv);
-  return kv;
+  return std::make_unique<KeyValue>(object_handle, object_id);
 }
 
-Array Container::create_array() {
+ArrayPtr Container::create_array() {
   /**
    *TODO:
    * ID of an object, 128 bits
@@ -59,7 +57,7 @@ Array Container::create_array() {
   daos_array_create(container_handle_, object_id, DAOS_TX_NONE, CELL_SIZE,
 					CHUNK_SIZE, &array_handle, NULL);
 
-  return Array(array_handle, object_id);
+  return std::make_unique<Array>(array_handle, object_id);
 }
 
 UUID Container::get_uuid() {

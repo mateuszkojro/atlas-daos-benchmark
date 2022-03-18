@@ -5,6 +5,7 @@
 #include "KeyValue.h"
 #include <cstddef>
 #include <iostream>
+#include <memory>
 #include <system_error>
 #include <vector>
 
@@ -19,6 +20,9 @@
 #include <daos_errno.h>
 #include <daos_obj.h>
 
+using KeyValuePtr = std::unique_ptr<KeyValue>;
+using ArrayPtr = std::unique_ptr<Array>;
+
 class Container {
  public:
   Container(UUID uuid, daos_handle_t pool_handle);
@@ -32,13 +36,13 @@ class Container {
 
   UUID get_uuid();
 
-  KeyValue create_kv_object();
+  KeyValuePtr create_kv_object();
 
   // TODO: Cell size and chunk size can be diferent
-  Array create_array();
+  ArrayPtr create_array();
 
  private:
   daos_handle_t container_handle_;
-  std::vector<DAOSObject> objects_;
+  // std::vector<DAOSObject> objects_;
 };
 #endif// !MK_CONTAINER_H

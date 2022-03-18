@@ -2,6 +2,7 @@
 #define MK_DAOS_OBJECT_H
 
 #include "daos_types.h"
+
 class DAOSObject {
  public:
   DAOSObject(daos_handle_t object_handle, daos_obj_id_t object_id);
@@ -9,7 +10,7 @@ class DAOSObject {
   DAOSObject(const DAOSObject&) = default;
   DAOSObject& operator=(DAOSObject&&) = default;
   DAOSObject& operator=(const DAOSObject&) = default;
-  ~DAOSObject() = default;
+  ~DAOSObject();
 
  protected:
   // FXIME: This handles should be closed

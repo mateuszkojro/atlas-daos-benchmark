@@ -30,7 +30,7 @@ void test_kv(ContainerPtr& container, EventQueue& event_queue) {
 
   auto start = high_resolution_clock::now();
   for (int i = 0; i < number_ok_events_to_save; i++) {
-	object.write_raw(std::to_string(i).c_str(), "bb", event_size,
+	object->write_raw(std::to_string(i).c_str(), "bb", event_size,
 					 event_queue.get_event());
   }
 
@@ -41,7 +41,7 @@ void test_kv(ContainerPtr& container, EventQueue& event_queue) {
 
   start = high_resolution_clock::now();
   for (int i = 0; i < number_ok_events_to_save; i++) {
-	object.write_raw(std::to_string(i + number_ok_events_to_save).c_str(), "bb",
+	object->write_raw(std::to_string(i + number_ok_events_to_save).c_str(), "bb",
 					 event_size, NULL);
   }
   end = high_resolution_clock::now();
@@ -57,7 +57,7 @@ void test_array(ContainerPtr& container, EventQueue& event_queue) {
 
   auto start = high_resolution_clock::now();
   for (int i = 0; i < number_ok_events_to_save; i++) {
-	object.write_raw(i, array);
+	object->write_raw(i, array);
   }
   auto end = high_resolution_clock::now();
   std::cout << "Array w/o eq:\t"
@@ -66,7 +66,7 @@ void test_array(ContainerPtr& container, EventQueue& event_queue) {
 
   start = high_resolution_clock::now();
   for (int i = 0; i < number_ok_events_to_save; i++) {
-	object.write_raw(i, array, event_queue.get_event());
+	object->write_raw(i, array, event_queue.get_event());
   }
   event_queue.wait();
   end = high_resolution_clock::now();
