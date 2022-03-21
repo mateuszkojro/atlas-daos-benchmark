@@ -6,10 +6,13 @@
 #include "daos.h"
 #include "daos_event.h"
 #include "daos_types.h"
+#include <atomic>
 #include <cstddef>
 #include <cstdlib>
 #include <ctime>
 #include <stdexcept>
+#include <mutex>
+
 
 #include <iostream>
 #include <vector>
@@ -17,7 +20,7 @@
 class EventQueue {
  public:
   EventQueue(size_t max_inflight);
-  EventQueue(EventQueue&&) = default;
+  EventQueue(EventQueue&&) = delete;
   EventQueue(const EventQueue&) = delete;
   EventQueue& operator=(EventQueue&&) = delete;
   EventQueue& operator=(const EventQueue&) = delete;
@@ -29,7 +32,7 @@ class EventQueue {
  private:
   daos_event_t* pool();
   daos_event_t* add_event();
-  size_t inflight_ = 0;
+  std::atomic_size_t inflight_ {0};
   const size_t max_inflight_;
 
   daos_handle_t event_queue_handle_;

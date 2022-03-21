@@ -44,9 +44,9 @@ daos_event_t* EventQueue::pool() {
 }
 
 daos_event_t* EventQueue::add_event() {
-  daos_event_t* event = &events_[inflight_];
+  daos_event_t* event = &events_[inflight_++];
   DAOS_CHECK(daos_event_init(event, event_queue_handle_, NULL));
-  inflight_++;
+  // inflight_++;
   return event;
 }
 
