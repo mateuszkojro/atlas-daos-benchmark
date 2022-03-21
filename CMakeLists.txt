@@ -10,6 +10,7 @@ set(DAOS_DOCKER_IMG daos-client)
 # set(CMAKE_CXX_COMPILER clang-13)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD 17)
 
 # Compiler flags for debuging
 add_compile_options(-ggdb -fdiagnostics-color=always -fsanitize=address,undefined -fno-omit-frame-pointer) #-Wextra -fsanitize=thread,memory

@@ -5,7 +5,13 @@ project(daos-cxx
         LANGUAGES C CXX
 )
 
-set(DAOS_INSTALL_DIR "/home/mkojro/s/daos/install")
+option(DAOS_DIR "Location of installed libdaos" "OFF")
+
+if(${DAOS_DIR} STREQUAL "OFF")
+    set(DAOS_INSTALL_DIR "/home/mkojro/s/daos/install")
+else()
+    set(DAOS_INSTALL_DIR ${DAOS_DIR})
+endif()
 
 
 add_library(daos-cxx
