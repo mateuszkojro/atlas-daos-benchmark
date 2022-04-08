@@ -3,15 +3,21 @@
 
 #include <stdexcept>
 
-#include <daos.h>
+#include "daos.h"
 #include <daos_errno.h>
+#include <iostream>
 #include <string>
 
-class DaosError;
+#define RED "\u001b[31m"
+#define RESET "\u001b[0m"
+#define ERROR(msg) std::cerr << RED << msg << RESET << std::endl;
 
-struct Position {
+class DAOSError;
+
+struct Position
+{
   Position(std::string file, int line, std::string func)
-      : file(file), line(line), func(func) {}
+	  : file(file), line(line), func(func) {}
   std::string file;
   int line;
   std::string func;
@@ -22,26 +28,26 @@ struct Position {
 
 #define DAOS_CHECK(command)                                                    \
   do {                                                                         \
-    int code = command;                                                        \
-    if (code != DER_SUCCESS) {                                                 \
-      throw DaosError(code,                                                    \
-                      Position(__FILE__, __LINE__, __PRETTY_FUNCTION__));      \
-    }                                                                          \
+	int code = command;                                                        \
+	if (code != DER_SUCCESS) {                                                 \
+	  throw DAOSError(code,                                                    \
+					  Position(__FILE__, __LINE__, __PRETTY_FUNCTION__));      \
+	}                                                                          \
   } while (0)
 
-class DaosError : virtual public std::runtime_error {
-public:
-  DaosError(int error_code, Position position)
-      : std::runtime_error(std::string(d_errstr(error_code)) + ": " +
-                           std::string(d_errdesc(error_code)) + " at " +
-                           position.file + ":" + std::to_string(position.line) +
-                           " " + position.func),
-        error_code_(error_code) {}
+class DAOSError : virtual public std::runtime_error {
+ public:
+  DAOSError(int error_code, Position position)
+	  : std::runtime_error(std::string(d_errstr(error_code)) + ": "
+						   + std::string(d_errdesc(error_code)) + " at "
+						   + position.file + ":" + std::to_string(position.line)
+						   + " " + position.func),
+		error_code_(error_code) {}
 
   int get_error_code() const { return error_code_; }
 
-private:
+ private:
   int error_code_;
 };
 
-#endif // !MK_ERRORS_H
+#endif// !MK_ERRORS_H
