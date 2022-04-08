@@ -7,11 +7,15 @@ on:
     branches: [ main ]
 
 jobs:
+  build_daos_dev:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build the daos-dev image
+      run: cd daos-dev && docker build . --file Dockerfile --tag daos-dev:rocky8.4
 
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
     - name: Build the Docker image (check if whole projects builds)
