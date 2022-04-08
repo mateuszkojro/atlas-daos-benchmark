@@ -1,0 +1,15 @@
+diff --git a/utils/scripts/install-centos8.sh b/utils/scripts/install-centos8.sh
+index 7d788ac1e..f4444c067 100755
+--- a/utils/scripts/install-centos8.sh
++++ b/utils/scripts/install-centos8.sh
+@@ -10,8 +10,8 @@
+ 
+ set -e
+ 
+-dnf upgrade
+-dnf install \
++dnf -y upgrade
++dnf -y install \
+     boost-python3-devel \
+     clang \
+     clang-tools-extra \
