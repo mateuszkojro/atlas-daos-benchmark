@@ -1,18 +1,37 @@
 #include "Pool.h"
+#include "Errors.h"
+#include "daos_types.h"
+#include <cstddef>
+#include <stdexcept>
 
-Pool::Pool(UUID pool_uuid) : pool_uuid_(pool_uuid) { connect(); }
+Pool::Pool(UUID pool_uuid) { connect(pool_uuid.raw()); }
+
+Pool::Pool(const std::string pool_label) {
+    connect(pool_label.c_str());
+}
 
 // TODO: Closing all the connections
 Pool::~Pool() { clean_up(); }
 
-void Pool::connect() {
+void Pool::connect(const std::string& label) {
   unsigned flags = DAOS_PC_RW;
-  DAOS_CHECK(daos_pool_connect(pool_uuid_.raw(), nullptr, flags, &pool_handle_,
-							   nullptr, nullptr));
+  DAOS_CHECK(daos_pool_connect(label.c_str(), NULL, flags, &pool_handle_, NULL, NULL));
+  if (daos_handle_is_inval(pool_handle_)) {
+	throw std::runtime_error("Handle is invalid in Pool:connect()");
+  }
+}
+
+void Pool::connect(const unsigned char* uuid) {
+  unsigned flags = DAOS_PC_RW;
+  DAOS_CHECK(daos_pool_connect(uuid, NULL, flags, &pool_handle_,
+							   NULL, NULL));
+  if (daos_handle_is_inval(pool_handle_)){
+    throw std::runtime_error("Handle is invalid in Pool:connect()");
+  }
 }
 
 void Pool::clean_up() {
-  DAOS_CHECK(daos_pool_disconnect(pool_handle_, nullptr));
+  DAOS_CHECK(daos_pool_disconnect(pool_handle_, NULL));
 }
 
 ContainerPtr Pool::add_container(const std::string& name) {
@@ -21,7 +40,7 @@ ContainerPtr Pool::add_container(const std::string& name) {
 
   if (name.empty()) {
 	DAOS_CHECK(
-		daos_cont_create_cpp(pool_handle_, &container_uuid, nullptr, nullptr));
+		daos_cont_create_cpp(pool_handle_, &container_uuid, NULL, NULL));
   } else {
 	DAOS_CHECK(daos_cont_create_with_label(pool_handle_, name.c_str(), NULL,
 										   &container_uuid, NULL));

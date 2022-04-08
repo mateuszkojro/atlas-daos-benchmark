@@ -19,6 +19,7 @@ using ContainerPtr = std::unique_ptr<Container>;
 class Pool {
  public:
   Pool(UUID pool_uuid);
+  Pool(const std::string pool_label);
   Pool(Pool&&) = delete;
   Pool(const Pool&) = delete;
   Pool& operator=(Pool&&) = delete;
@@ -28,11 +29,12 @@ class Pool {
   ContainerPtr add_container(const std::string& name = "");
   ContainerPtr get_container(const UUID& uuid);
   void remove_container(ContainerPtr& ptr);
-  void connect();
+  void connect(const unsigned char* uuid_or_label);
+  void connect(const std::string& label);
   void clean_up();
 
  private:
-  UUID pool_uuid_;
+  // UUID pool_uuid_;
   daos_handle_t pool_handle_;
 };
 

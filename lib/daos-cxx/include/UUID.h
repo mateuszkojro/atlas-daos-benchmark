@@ -7,12 +7,12 @@
 class UUID {
  public:
   UUID(uuid_t uuid);
-  UUID(std::string uuid);
+  explicit UUID(std::string uuid);
   UUID(UUID&&) = default;
   UUID(const UUID&);
   const UUID& operator=(const UUID&) = delete;
 
-  const char* raw() const;
+  const unsigned char* raw() const;
   std::string to_string() const;
 
  private:
