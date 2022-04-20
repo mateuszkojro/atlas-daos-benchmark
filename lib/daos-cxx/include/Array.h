@@ -17,11 +17,12 @@
 #include <vector>
 
 #include "Errors.h"
+#include "interfaces.h"
 
 #define CELL_SIZE 1024
 #define CHUNK_SIZE 1024 * 100
 
-class Array : public DAOSObject {
+class Array : public DAOSObject, public IArray {
  public:
   Array(daos_handle_t array_handle, daos_obj_id_t object_id);
   Array(const Array& other) = delete;

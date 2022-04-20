@@ -7,12 +7,14 @@
 #include "daos_types.h"
 #include <cstddef>
 #include <cstdlib>
-#include <stdexcept>
+#include "interfaces.h"
 
+
+#include <stdexcept>
 #include <iostream>
 #include <string>
 
-class KeyValue : public DAOSObject {
+class KeyValue : public DAOSObject, public IKeyValue {
  public:
   KeyValue(daos_handle_t object_handle, daos_obj_id_t object_id);
   KeyValue(KeyValue&&) = default;

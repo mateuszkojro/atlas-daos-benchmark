@@ -16,14 +16,12 @@
 #include "daos_obj_class.h"
 #include "daos_prop.h"
 #include "daos_types.h"
+#include "interfaces.h"
 #include <daos.h>
 #include <daos_errno.h>
 #include <daos_obj.h>
 
-using KeyValuePtr = std::unique_ptr<KeyValue>;
-using ArrayPtr = std::unique_ptr<Array>;
-
-class Container {
+class Container : public IContainer {
  public:
   Container(UUID uuid, daos_handle_t pool_handle);
   Container(daos_handle_t container_handle);

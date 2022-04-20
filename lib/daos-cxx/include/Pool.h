@@ -14,9 +14,7 @@
 #include "daos_types.h"
 #include "types.h"
 
-using ContainerPtr = std::unique_ptr<Container>;
-
-class Pool {
+class Pool : public IPool {
  public:
   Pool(UUID pool_uuid);
   Pool(const std::string pool_label);
