@@ -8,11 +8,12 @@ project(daos-cxx
 option(DAOS_DIR "Location of installed libdaos" "OFF")
 
 if(${DAOS_DIR} STREQUAL "OFF")
-    set(DAOS_INSTALL_DIR "/home/mkojro/s/daos/install")
+    set(DAOS_INSTALL_DIR ${CMAKE_SOURCE_DIR}/lib/daos-cxx/lib/daos/install/)
 else()
     set(DAOS_INSTALL_DIR ${DAOS_DIR})
 endif()
 
+message(DAOS\ install\ dir:  ${DAOS_INSTALL_DIR})
 
 add_library(daos-cxx
     ./include/Pool.h src/Pool.cxx 
@@ -25,7 +26,7 @@ add_library(daos-cxx
     ./include/Array.h src/Array.cxx
     ./include/UUID.h src/UUID.cxx)
 
-target_include_directories(daos-cxx PUBLIC ${DAOS_INSTALL_DIR}/include)
+target_include_directories(daos-cxx PUBLIC ${DAOS_INSTALL_DIR}/include/)
 target_include_directories(daos-cxx PUBLIC include)
 
 target_link_libraries(daos-cxx PUBLIC 

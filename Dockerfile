@@ -1,8 +1,11 @@
 FROM daos-dev:rocky8.4
 WORKDIR /app
-COPY build.sh .
+RUN dnf install python3
+COPY metabuild.py .
+COPY cmake.in .
 COPY CMakeLists.txt .
 COPY src/ src/
 COPY lib/ lib/
 COPY bench/ bench/
-RUN bash ./build.sh
+RUN ./metabuild.py --configure --build
+CMD ["./build/bench/bench"]
