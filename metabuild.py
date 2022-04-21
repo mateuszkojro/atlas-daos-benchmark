@@ -126,10 +126,12 @@ class SCP(Program):
         self.run_command([src, dst])
 
 
-def run_on_cluster(cmake: CMake):
+def run_on_cluster(cmake: CMake,
+                   cluster_hostname="olsky-02",
+                   cluster_dir="~/"):
     cmake.configure()
     cmake.build()
-    SCP().copy("./build/bench/bench", "olsky-02:~/")
+    SCP().copy("./build/bench/bench", f"{cluster_hostname}:{cluster_dir}")
     SSH("olsky-02").exec("./bench")
 
 
@@ -143,25 +145,39 @@ def docker_compile_and_copy(docker: Docker):
     docker.copy(f"{out_folder}/bench", "daos-client:/")
     docker.exec("daos-client", "./bench")
 
+
 def compile_daos(daos_dir):
     scons = Program("scons-3", working_dir=daos_dir)
     cpu_count = os.cpu_count() - 2 if os.cpu_count() is not None else 1
     scons.run_command(["install", "-j", str(cpu_count),
-                        "--build-deps=yes", "--config=force"])
+                       "--build-deps=yes", "--config=force"])
+
 
 if __name__ == '__main__':
     cmake_defines = Utils.load_flags("cmake.in")
     if Utils.running_in_docker():
         cmake_defines += [f'-DDAOS_DIR={"/daos/install"}']
-    
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--configure", action='store_true')
-    parser.add_argument("--build", action='store_true')
-    parser.add_argument("--docker_build", action='store_true')
-    parser.add_argument("--clean", action='store_true')
-    parser.add_argument("--cluster_run", action='store_true')
-    parser.add_argument("--build_in_docker", action='store_true')
-    parser.add_argument("--build_daos", action='store_true')
+    parser.add_argument("--configure", action='store_true',
+                        help="Run CMake configuration")
+
+    parser.add_argument("--build", action='store_true',
+                        help="Build the CMake project")
+
+    parser.add_argument("--docker_build", action='store_true',
+                        help="Build a Docker image")
+
+    parser.add_argument("--clean", action='store_true',
+                        help="Remove the build directory")
+
+    parser.add_argument("--cluster_run", action='store_true',
+                        help="Configure and compile CMake project than copy it to the cluster and run")
+
+    parser.add_argument("--build_in_docker", action='store_true', help="")
+
+
+    parser.add_argument("--build_daos", action='store_true', help="Build provided daos library")
     args = parser.parse_args()
 
     cmake = CMake()
