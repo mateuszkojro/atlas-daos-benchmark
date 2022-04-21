@@ -8,6 +8,7 @@ project(daos-cxx
 option(DAOS_DIR "Location of installed libdaos" "OFF")
 
 if(${DAOS_DIR} STREQUAL "OFF")
+    # Provided DAOS src
     set(DAOS_INSTALL_DIR ${CMAKE_SOURCE_DIR}/lib/daos-cxx/lib/daos/install/)
 else()
     set(DAOS_INSTALL_DIR ${DAOS_DIR})
@@ -16,6 +17,10 @@ endif()
 message(DAOS\ install\ dir:  ${DAOS_INSTALL_DIR})
 
 add_library(daos-cxx
+    # Implemented interfaces
+    ./include/interfaces.h
+
+    # Library
     ./include/Pool.h src/Pool.cxx 
     ./include/Container.h src/Container.cxx
     ./include/Errors.h 
@@ -24,7 +29,14 @@ add_library(daos-cxx
     ./include/KeyValue.h src/KeyValue.cxx
     ./include/DAOSObject.h src/DAOSObject.cxx
     ./include/Array.h src/Array.cxx
-    ./include/UUID.h src/UUID.cxx)
+    ./include/UUID.h src/UUID.cxx
+    
+    # Mocking
+    ./include/mocking.h
+    ./include/MockPool.h
+    ./include/MockContainer.h
+    ./include/MockKeyValue.h
+)
 
 target_include_directories(daos-cxx PUBLIC ${DAOS_INSTALL_DIR}/include/)
 target_include_directories(daos-cxx PUBLIC include)

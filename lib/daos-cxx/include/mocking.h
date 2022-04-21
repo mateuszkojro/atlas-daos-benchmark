@@ -5,11 +5,15 @@
 #include <memory>
 #include <ostream>
 
+#ifndef MK_MOCK_H
+#define MK_MOCK_H
+
 // #define LOG_EVENT(x) __func__
 
 class IDAOSLog {
  public:
-  void log(const std::string&);
+  virtual void log(const std::string&) = 0;
+  virtual ~IDAOSLog() = default;
 };
 
 class DAOSSimpleLog : public IDAOSLog {
@@ -22,6 +26,8 @@ class DAOSSimpleLog : public IDAOSLog {
 
 class MockDAOS {
  public:
+  MockDAOS(IDAOSLog* log) : logger_(log) {}
+
   void daos_pool_connect_cpp() { logger_->log(__PRETTY_FUNCTION__); }
 
   void daos_cont_create_cpp() { logger_->log(__PRETTY_FUNCTION__); }
@@ -35,6 +41,8 @@ class MockDAOS {
   void daos_kv_get() { logger_->log(__PRETTY_FUNCTION__); }
 
   void daos_kv_put() { logger_->log(__PRETTY_FUNCTION__); }
+
+  void daos_kv_open() { logger_->log(__PRETTY_FUNCTION__); }
 
   /*
 	  Full function signatures if more detailed logging would make sense
@@ -77,16 +85,19 @@ class MockDAOS {
   }
 
  private:
-  std::unique_ptr<IDAOSLog> logger_;
+  IDAOSLog* logger_;
   // std::ostream& output_stream;
 };
 
 class MockDAOSObj {
  protected:
-  MockDAOSObj(const std::weak_ptr<MockDAOS>& mock_daos);
+  MockDAOSObj(const std::weak_ptr<MockDAOS>& mock_daos)
+	  : mock_daos_(mock_daos) {}
 
   std::shared_ptr<MockDAOS> mock_daos() { return mock_daos_.lock(); }
 
  private:
   std::weak_ptr<MockDAOS> mock_daos_;
 };
+
+#endif// !MK_MOCK_H

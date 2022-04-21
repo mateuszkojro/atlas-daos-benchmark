@@ -12,7 +12,7 @@ class UUID {
   UUID(const UUID&);
   const UUID& operator=(const UUID&) = delete;
 
-  const unsigned char* raw() const;
+  const char* raw() const;
   std::string to_string() const;
 
  private:

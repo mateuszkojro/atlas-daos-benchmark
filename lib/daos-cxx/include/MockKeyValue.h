@@ -4,7 +4,7 @@
 #include <memory>
 
 class MockKeyValue : public IKeyValue, public MockDAOSObj {
-
+ public:
   MockKeyValue(const std::weak_ptr<MockDAOS>& mock_daos)
 	  : MockDAOSObj(mock_daos) {}
 
