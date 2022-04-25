@@ -21,6 +21,14 @@ void Pool::connect(const std::string& label) {
   }
 }
 
+
+
+std::unique_ptr<daos_handle_t> Pool::get_pool_handle() {
+  MK_UNIMPLEMENTED;
+}
+
+
+
 void Pool::connect(const unsigned char* uuid) {
   unsigned flags = DAOS_PC_RW;
   DAOS_CHECK(daos_pool_connect(uuid, NULL, flags, &pool_handle_,

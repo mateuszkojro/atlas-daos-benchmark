@@ -29,6 +29,7 @@ class Pool : public IPool {
   void remove_container(ContainerPtr& ptr);
   void connect(const unsigned char* uuid_or_label);
   void connect(const std::string& label);
+  std::unique_ptr<daos_handle_t> get_pool_handle();
   void clean_up();
 
  private:

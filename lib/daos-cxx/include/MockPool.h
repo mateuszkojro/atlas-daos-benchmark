@@ -9,7 +9,9 @@
 
 class MockPool : public IPool, public MockDAOSObj {
  public:
-  MockPool(std::weak_ptr<MockDAOS> mock_daos) : MockDAOSObj(mock_daos) {}
+  MockPool(std::weak_ptr<MockDAOS> mock_daos) : MockDAOSObj(mock_daos) {
+    this->mock_daos()->daos_pool_connect_cpp();
+  }
 
   virtual ContainerPtr add_container(const std::string& name = "") {
 	mock_daos()->daos_cont_create_cpp();
@@ -27,6 +29,8 @@ class MockPool : public IPool, public MockDAOSObj {
 	MK_UNIMPLEMENTED;
   };
   virtual void clean_up() { MK_UNIMPLEMENTED; };
+
+  virtual ~MockPool() { mock_daos()->daos_cont_close(); }
 };
 
 #endif// !MK_MOCK_POOL_H
