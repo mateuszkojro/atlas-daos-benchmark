@@ -4,15 +4,30 @@
 #include <cstdint>
 #include <memory>
 #include <ostream>
+#include <stdexcept>
 
 #ifndef MK_MOCK_H
 #define MK_MOCK_H
 
 // #define LOG_EVENT(x) __func__
 
+enum MockDAOSOperationType
+{
+  UNDEFINED,
+  POOL_CONNECT,
+  CONT_CREATE,
+  CONT_DESTROY,
+  CONT_OPEN,
+  CONT_CLOSE,
+  KV_GET,
+  KV_PUT,
+  KV_OPEN
+};
+
 class IDAOSLog {
  public:
-  virtual void log(const std::string&) = 0;
+  virtual void log(const std::string&,
+				   MockDAOSOperationType operation = UNDEFINED) = 0;
   virtual ~IDAOSLog() = default;
 };
 
@@ -20,7 +35,10 @@ class DAOSSimpleLog : public IDAOSLog {
  public:
   DAOSSimpleLog(std::ostream& stream) : ostream_(stream) {}
 
-  void log(const std::string& func_name) { ostream_ << func_name << "\n"; }
+  void log(const std::string& func_name,
+		   MockDAOSOperationType operation = UNDEFINED) {
+	ostream_ << func_name << "\n";
+  }
   std::ostream& ostream_;
 };
 
@@ -28,21 +46,30 @@ class MockDAOS {
  public:
   MockDAOS(IDAOSLog* log) : logger_(log) {}
 
-  void daos_pool_connect_cpp() { logger_->log(__PRETTY_FUNCTION__); }
+  void daos_pool_connect_cpp() {
+	logger_->log(__PRETTY_FUNCTION__, POOL_CONNECT);
+  }
 
-  void daos_cont_create_cpp() { logger_->log(__PRETTY_FUNCTION__); }
+  void daos_cont_create_cpp() {
+	logger_->log(__PRETTY_FUNCTION__, CONT_CREATE);
 
-  void daos_cont_destroy_cpp() { logger_->log(__PRETTY_FUNCTION__); }
 
-  void daos_cont_open_cpp() { logger_->log(__PRETTY_FUNCTION__); }
+  
+  }
 
-  void daos_cont_close() { logger_->log(__PRETTY_FUNCTION__); }
+  void daos_cont_destroy_cpp() {
+	logger_->log(__PRETTY_FUNCTION__, CONT_DESTROY);
+  }
 
-  void daos_kv_get() { logger_->log(__PRETTY_FUNCTION__); }
+  void daos_cont_open_cpp() { logger_->log(__PRETTY_FUNCTION__, CONT_OPEN); }
 
-  void daos_kv_put() { logger_->log(__PRETTY_FUNCTION__); }
+  void daos_cont_close() { logger_->log(__PRETTY_FUNCTION__, CONT_CLOSE); }
 
-  void daos_kv_open() { logger_->log(__PRETTY_FUNCTION__); }
+  void daos_kv_get() { logger_->log(__PRETTY_FUNCTION__, KV_GET); }
+
+  void daos_kv_put() { logger_->log(__PRETTY_FUNCTION__, KV_OPEN); }
+
+  void daos_kv_open() { logger_->log(__PRETTY_FUNCTION__, KV_GET); }
 
   /*
 	  Full function signatures if more detailed logging would make sense
