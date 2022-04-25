@@ -4,3 +4,6 @@
 [submodule "lib/daos-cxx/lib/daos"]
 	path = lib/daos-cxx/lib/daos
 	url = https://github.com/daos-stack/daos
+[submodule "lib/daos-cxx/lib/opentelemetry-cpp"]
+	path = lib/daos-cxx/lib/opentelemetry-cpp
+	url = https://github.com/open-telemetry/opentelemetry-cpp

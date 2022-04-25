@@ -6,8 +6,8 @@ UUID::UUID(std::string uuid) { uuid_parse(uuid.c_str(), uuid_); }
 
 UUID::UUID(const UUID& other) { uuid_copy(uuid_, other.uuid_); }
 
-const unsigned char * UUID::raw() const { 
-  return static_cast<const unsigned char *>(uuid_);
+const char * UUID::raw() const { 
+  return reinterpret_cast<const char*>(uuid_);
 }
 
 std::string UUID::to_string() const {
