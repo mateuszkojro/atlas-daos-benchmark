@@ -30,7 +30,12 @@ class Utils:
 
 
 class Program:
-    def __init__(self, program_executable, check_success=True, working_dir=".", shell=False) -> None:
+    def __init__(self,
+                 program_executable,
+                 check_success=True,
+                 working_dir=".",
+                 shell=False) -> None:
+
         if not Utils.program_avaliable(program_executable):
             raise RuntimeError(f"Program not found: {program_executable}")
         self._program_executable = program_executable
@@ -87,8 +92,8 @@ class Docker(Program):
         command += [container, program]
         return self.run_command(command)
 
-    def run(self, image, name="temporary_container", parameters=""):
-        return self.run_command(["run", "-it", image, "--name", name, parameters])
+    def run(self, image, name="temporary_container", run_parameters="-it" ,parameters=""):
+        return self.run_command(["run", *run_parameters, image, "--name", name, parameters])
 
     def create(self, container, name="dummy"):
         return self.run_command(["create", "--name", name, container])
@@ -176,8 +181,14 @@ if __name__ == '__main__':
 
     parser.add_argument("--build_in_docker", action='store_true', help="")
 
+    parser.add_argument("--build_daos", action='store_true',
+                        help="Build provided daos library")
 
-    parser.add_argument("--build_daos", action='store_true', help="Build provided daos library")
+    parser.add_argument("--run", action='store_true',
+                        help="Run `DAOS-benchmark` executable")
+
+    parser.add_argument("--start_zipkin", action="store_true",help="Run Zipkin instance to collect logs")
+
     args = parser.parse_args()
 
     cmake = CMake()
@@ -198,6 +209,12 @@ if __name__ == '__main__':
         sys.exit(0)
 
     docker = Docker()
+
+    # docker run -d -p 9411:9411 openzipkin/zipkin
+    if args.start_zipkin:
+        docker.run("openzipkin/zipkin",
+                   run_parameters=["-d", "-p", "9411:9411"])
+
     if args.docker_build:
         docker.build(".", "adb")
 
