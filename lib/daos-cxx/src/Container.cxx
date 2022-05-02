@@ -3,7 +3,8 @@
 #include <memory>
 
 Container::Container(UUID uuid, daos_handle_t pool_handle) {
-  DAOS_CHECK(daos_cont_open(pool_handle, uuid.raw(), DAOS_COO_RW,
+  uuid_t container_uuid;
+  DAOS_CHECK(daos_cont_open(pool_handle, "benchmark_container", DAOS_COO_RW,
 							&container_handle_, NULL, NULL));
 }
 
