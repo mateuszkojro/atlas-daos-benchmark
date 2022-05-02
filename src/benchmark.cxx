@@ -17,6 +17,15 @@
 #include <thread>
 #include <vector>
 
+#define MOCK
+
+#ifdef MOCK
+#include "DAOSZipkinLog.h"
+#include "MockPool.h"
+#include <fstream>
+#include <memory>
+#endif// MOCK
+
 #include "timing.h"
 
 #define KB(x) 1024 * x
@@ -31,9 +40,10 @@ const int event_size = CELL_SIZE;// MB(5);
 
 void test_kv(ContainerPtr& container, EventQueue& event_queue) {
   auto key_value = container->create_kv_object();
-
+  std::clog << "Started run" << std::endl;
   auto start = high_resolution_clock::now();
   for (int i = 0; i < number_ok_events_to_save; i++) {
+	std::clog << "Write raw called" << std::endl;
 	key_value->write_raw(std::to_string(i).c_str(), "bb", event_size,
 						 event_queue.get_event());
   }
@@ -248,12 +258,12 @@ std::vector<TestConfig> generate_configurations() {
 
 		for (size_t chunk_size = CHUNK_SIZE_MIM; chunk_size < CHUNK_SIZE_MAX;
 			 chunk_size += CHUNK_SIZE_STEP) {
-		    configurations.push_back(TestConfig::generate_array_config(
-		  	  true, fragment_size, inflight_events, fragments_to_save,
-		  	  chunk_size, fragment_size));
-		    configurations.push_back(TestConfig::generate_array_config(
-		  	  false, fragment_size, inflight_events, fragments_to_save,
-		  	  chunk_size, fragment_size));
+		  configurations.push_back(TestConfig::generate_array_config(
+			  true, fragment_size, inflight_events, fragments_to_save,
+			  chunk_size, fragment_size));
+		  configurations.push_back(TestConfig::generate_array_config(
+			  false, fragment_size, inflight_events, fragments_to_save,
+			  chunk_size, fragment_size));
 		}
 		configurations.push_back(TestConfig::generate_key_value_config(
 			true, fragment_size, inflight_events, fragments_to_save));
@@ -262,28 +272,51 @@ std::vector<TestConfig> generate_configurations() {
 	  }
 	}
   }
-//   std::cout << RED << "56bytes * " << counter << RESET << std::endl;
+  //   std::cout << RED << "56bytes * " << counter << RESET << std::endl;
   return configurations;
 }
 
 int main(int argc, char** argv) {
 
-  std::string pool_uuid_string = "683bce8d-e49b-4961-8a6a-ad899ca9de4a";
-  if (argc == 2) {
-	pool_uuid_string = argv[1];
+  if (argc != 2) {
+	std::cout << "Pass pool label as a parameter" << std::endl;
   }
-  std::vector<TimingInfo> results;
-  DAOS_CHECK(daos_init());
-  {
-	Pool pool(pool_uuid_string);
-	// sweep_settings(pool);
-	printf("Generating configurations ...");
-	auto configurations = generate_configurations();
-	printf("done\n");
-	Harness harness(configurations, pool);
-	results = harness.measure();
-  }
-  DAOS_CHECK(daos_fini());
-  printf(RED "--- Collected %ld data points\n" RESET, results.size());
 
+  std::string label = argv[1];
+  std::vector<TimingInfo> results;
+
+#ifndef MOCK
+  DAOS_CHECK(daos_init());
+#endif// !MOCK
+  {
+	std::cout << "-- Connecting to the pool" << std::endl;
+
+#ifdef MOCK
+  init_opentelemetry();
+	auto log = std::make_unique<DAOSZipkinLog>();
+	auto mock_daos = std::make_shared<MockDAOS>(log.release());
+
+	MockPool pool(mock_daos);
+#else
+	Pool pool(label);
+#endif// MOCK
+
+	// // sweep_settings(pool);
+	// printf("Generating configurations ...");
+	// auto configurations = generate_configurations();
+	// printf("done\n");
+	// Harness harness(configurations, pool);
+	// results = harness.measure();
+	std::cout << "-- Adding container" << std::endl;
+	auto container = pool.add_container("benchmark_container");
+	std::cout << "-- Creating key-value object" << std::endl;
+	auto kv = container->create_kv_object();
+	std::cout << "-- Writing data" << std::endl;
+	kv->write_raw("key", "value", 100);
+	std::cout << "-- Reading data" << std::endl;
+	kv->read_raw("key");
+  }
+#ifndef MOCK
+  DAOS_CHECK(daos_fini());
+#endif// !MOCK
 }
