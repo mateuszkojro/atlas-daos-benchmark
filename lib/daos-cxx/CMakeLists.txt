@@ -32,18 +32,28 @@ add_library(daos-cxx
     ./include/UUID.h src/UUID.cxx
     
     # Mocking
+    ./include/DAOSZipkinLog.h
     ./include/mocking.h
     ./include/MockPool.h
     ./include/MockContainer.h
     ./include/MockKeyValue.h
 )
 
+
+set(opentelemetry ./lib/opentelemetry-cpp)
+add_subdirectory(${opentelemetry})
+
+set(OPENTELEMETRY_LIBS PUBLIC ${CMAKE_THREAD_LIBS_INIT} opentelemetry_trace opentelemetry_exporter_zipkin_trace)
+target_include_directories(daos-cxx PUBLIC ${opentelemetry}/exporters/zipkin/include ${opentelemetry})
+
+
 target_include_directories(daos-cxx PUBLIC ${DAOS_INSTALL_DIR}/include/)
 target_include_directories(daos-cxx PUBLIC include)
-
 target_link_libraries(daos-cxx PUBLIC 
     ${DAOS_INSTALL_DIR}/lib64/libdaos.so 
     ${DAOS_INSTALL_DIR}/lib64/libgurt.so 
     ${DAOS_INSTALL_DIR}/lib64/libdaos_common.so 
     uuid
+    ${OPENTELEMETRY_LIBS}
 )
+

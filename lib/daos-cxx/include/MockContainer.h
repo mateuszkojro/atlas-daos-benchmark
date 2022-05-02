@@ -17,6 +17,7 @@ class MockContainer : public MockDAOSObj, public IContainer {
   }
   // TODO: Cell size and chunk size can be diferent
   virtual ArrayPtr create_array() { MK_UNIMPLEMENTED; }
+  virtual ~MockContainer() { mock_daos()->daos_cont_close(); }
 };
 
 #endif// !MK_MOCK_CONTAINER_H
