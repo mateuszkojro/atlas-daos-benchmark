@@ -13,12 +13,19 @@
 #include <thread>
 #include <vector>
 
-std::string label = "mkojro";
-UUID uuid("3cb8ac1e-f0c0-4aa1-8cd2-af72b5e44c17");
+std::string POOL_LABEL = "mkojro";
+UUID POOL_UUID("3cb8ac1e-f0c0-4aa1-8cd2-af72b5e44c17");
+int MIN_CHUNK_SIZE = 1024;
+int MAX_CHUNK_SIZE = 10 * 1024;
+int CHUNK_SIZE_STEP = 256;
+int REPETITIONS = 10;
+int WRITES_PER_TEST = 1000;
+int KEYS_TO_GENERATE = WRITES_PER_TEST;
+int VALUES_TO_GENERATE = KEYS_TO_GENERATE;
 
 static void creating_events_kv_sync(benchmark::State& state) {
-  size_t generated_values = 100;
-  size_t generated_keys = 100;
+  size_t generated_values = VALUES_TO_GENERATE;
+  size_t generated_keys = KEYS_TO_GENERATE;
 
   size_t value_size = state.range(0);
 
@@ -29,11 +36,11 @@ static void creating_events_kv_sync(benchmark::State& state) {
 
   for (auto& value : values) { value.assign(value_size, 'A'); }
 
-  Pool pool(label);
+  Pool pool(POOL_LABEL);
   auto container = pool.add_container("benchmark_container");
   auto key_value_store = container->create_kv_object();
   for (auto _ : state) {
-	for (int i = 0; i < 1000; i++) {
+	for (int i = 0; i < WRITES_PER_TEST; i++) {
 	  key_value_store->write_raw(keys[i % generated_keys].c_str(),
 								 values[i % generated_values].data(),
 								 value_size);
@@ -44,8 +51,8 @@ static void creating_events_kv_sync(benchmark::State& state) {
 }
 
 static void creating_events_kv_async(benchmark::State& state) {
-  size_t generated_values = 100;
-  size_t generated_keys = 100;
+  size_t generated_values = VALUES_TO_GENERATE;
+  size_t generated_keys = KEYS_TO_GENERATE;
 
   size_t value_size = state.range(0);
 
@@ -56,12 +63,12 @@ static void creating_events_kv_async(benchmark::State& state) {
 
   for (auto& value : values) { value.assign(value_size, 'A'); }
 
-  Pool pool(label);
-  EventQueue eq(100);
+  Pool pool(POOL_LABEL);
+  EventQueue eq(state.range(1));
   auto container = pool.add_container("benchmark_container");
   auto key_value_store = container->create_kv_object();
   for (auto _ : state) {
-	for (int i = 0; i < 1000; i++) {
+	for (int i = 0; i < WRITES_PER_TEST; i++) {
 	  key_value_store->write_raw(keys[i % generated_keys].c_str(),
 								 values[i % generated_values].data(),
 								 value_size, eq.get_event());
@@ -73,8 +80,8 @@ static void creating_events_kv_async(benchmark::State& state) {
 }
 
 static void creating_events_array(benchmark::State& state) {
-  size_t generated_values = 100;
-  size_t generated_keys = 100;
+  size_t generated_values = VALUES_TO_GENERATE;
+  size_t generated_keys = KEYS_TO_GENERATE;
 
   size_t value_size = state.range(0);
 
@@ -85,11 +92,11 @@ static void creating_events_array(benchmark::State& state) {
 
   for (auto& value : values) { value.assign(value_size, 'A'); }
 
-  Pool pool(label);
+  Pool pool(POOL_LABEL);
   auto container = pool.add_container("benchmark_container");
   auto array_store = container->create_array();
   for (auto _ : state) {
-	for (int i = 0; i < 1000; i++) {
+	for (int i = 0; i < WRITES_PER_TEST; i++) {
 	  array_store->write_raw(i % generated_keys,
 							 values[i % generated_values].data(), NULL);
 
@@ -100,32 +107,22 @@ static void creating_events_array(benchmark::State& state) {
 }
 
 BENCHMARK(creating_events_kv_sync)
-	->Repetitions(10)
-	->RangeMultiplier(2)
-	->Range(1024, 64 * 1024)
-	->RangeMultiplier(2)
-	->Range(5 * 1024, 64 * 1024)
-	->Range(10 * 1024, 1024 * 1024)
+	->DenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE, CHUNK_SIZE_STEP)
+	->Repetitions(REPETITIONS)
 	->Setup([](const benchmark::State&) { daos_init(); })
 	->Teardown([](const benchmark::State&) { daos_fini(); });
 
 BENCHMARK(creating_events_kv_async)
-  ->Repetitions(10)
-	->RangeMultiplier(2)
-	->Range(1024, 64 * 1024)
-	->RangeMultiplier(2)
-	->Range(5 * 1024, 64 * 1024)
-	->Range(10 * 1024, 1024 * 1024)
+	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
+											   CHUNK_SIZE_STEP),// Chunk size
+				   benchmark::CreateDenseRange(1, 300, 25)})// Inflight events
+	->Repetitions(REPETITIONS)
 	->Setup([](const benchmark::State&) { daos_init(); })
 	->Teardown([](const benchmark::State&) { daos_fini(); });
 
 BENCHMARK(creating_events_array)
-  ->Repetitions(10)
-	->RangeMultiplier(2)
-	->Range(1024, 64 * 1024)
-	->RangeMultiplier(2)
-	->Range(5 * 1024, 64 * 1024)
-	->Range(10 * 1024, 1024 * 1024)
+	->DenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE, CHUNK_SIZE_STEP)
+	->Repetitions(REPETITIONS)
 	->Setup([](const benchmark::State&) { daos_init(); })
 	->Teardown([](const benchmark::State&) { daos_fini(); });
 
