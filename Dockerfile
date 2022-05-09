@@ -1,6 +1,7 @@
 FROM daos-dev:rocky8.4
 WORKDIR /app
-RUN dnf install python3
+RUN dnf install -y python3
+RUN dnf install -y curl libcurl-devel
 COPY metabuild.py .
 COPY cmake.in .
 COPY CMakeLists.txt .
