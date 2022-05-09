@@ -1,10 +1,18 @@
 #include "Container.h"
 #include "KeyValue.h"
 #include <memory>
+#include <string>
 
 Container::Container(UUID uuid, daos_handle_t pool_handle) {
+  MK_UNIMPLEMENTED;
   uuid_t container_uuid;
   DAOS_CHECK(daos_cont_open(pool_handle, "benchmark_container", DAOS_COO_RW,
+							&container_handle_, NULL, NULL));
+}
+
+Container::Container(const std::string& container_label,
+					 daos_handle_t pool_handle) {
+  DAOS_CHECK(daos_cont_open(pool_handle, container_label.c_str(), DAOS_COO_RW,
 							&container_handle_, NULL, NULL));
 }
 

@@ -24,6 +24,7 @@
 class Container : public IContainer {
  public:
   Container(UUID uuid, daos_handle_t pool_handle);
+  Container(const std::string& container_label, daos_handle_t pool_handle);
   Container(daos_handle_t container_handle);
 
   Container(Container&&) = default;

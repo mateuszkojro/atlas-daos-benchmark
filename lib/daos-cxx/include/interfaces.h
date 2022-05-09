@@ -10,7 +10,7 @@
 #define MK_UNIMPLEMENTED                                                       \
   do {                                                                         \
 	assert(false && "Unimplemented");                                          \
-	throw std::runtime_error("Unimplemented");                                 \
+	throw std::runtime_error(__PRETTY_FUNCTION__);                         \
   } while (false)
 
 class IKeyValue {

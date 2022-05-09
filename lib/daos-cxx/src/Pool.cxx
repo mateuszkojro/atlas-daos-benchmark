@@ -1,6 +1,7 @@
 #include "Pool.h"
 #include "Errors.h"
 #include "daos_types.h"
+#include <cassert>
 #include <cstddef>
 #include <memory>
 #include <stdexcept>
@@ -37,13 +38,14 @@ ContainerPtr Pool::add_container(const std::string& name) {
   uuid_t container_uuid;
 
   if (name.empty()) {
+	MK_UNIMPLEMENTED;
 	DAOS_CHECK(daos_cont_create_cpp(pool_handle_, &container_uuid, NULL, NULL));
   } else {
 	DAOS_CHECK(daos_cont_create_with_label(pool_handle_, name.c_str(), NULL,
 										   &container_uuid, NULL));
   }
 
-  return std::make_unique<Container>(container_uuid, pool_handle_);
+  return std::make_unique<Container>(name, pool_handle_);
 }
 
 // TODO: not tested!
@@ -55,15 +57,18 @@ ContainerPtr Pool::get_container(const UUID& uuid) {
   return std::make_unique<Container>(container_handle);
 }
 
-void Pool::remove_container(ContainerPtr& ptr) {
+void Pool::remove_container(const std::string& container_label) {
   bool force_destroy = true;
-  std::string label = "benchmark_container";
+  DAOS_CHECK(daos_cont_destroy(pool_handle_, container_label.c_str(),
+							   force_destroy, NULL));
+}
+
+void Pool::remove_container(ContainerPtr& ptr) {
+  MK_UNIMPLEMENTED;
+  // bool force_destroy = true;
+  // FIXME: remove this hack
   //  DAOS_CHECK(daos_cont_destroy(
   //   pool_handle_, ptr->get_uuid().raw(), force_destroy, NULL));
-
-  // FIXME: remove this hack
-  DAOS_CHECK(
-	  daos_cont_destroy(pool_handle_, label.c_str(), force_destroy, NULL));
 }
 
 std::unique_ptr<daos_handle_t> Pool::get_pool_handle() {

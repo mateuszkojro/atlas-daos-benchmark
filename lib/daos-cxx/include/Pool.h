@@ -18,15 +18,16 @@ class Pool : public IPool {
  public:
   Pool(UUID pool_uuid);
   Pool(const std::string pool_label);
-  Pool(Pool&&) = delete;
+  // Pool(Pool&&) = delete;
   Pool(const Pool&) = delete;
-  Pool& operator=(Pool&&) = delete;
+  // Pool& operator=(Pool&&) = delete;
   Pool& operator=(const Pool&) = delete;
   ~Pool();
 
   ContainerPtr add_container(const std::string& name = "");
   ContainerPtr get_container(const UUID& uuid);
   void remove_container(ContainerPtr& ptr);
+  void remove_container(const std::string& container_label);
   void connect(const unsigned char* uuid_or_label);
   void connect(const std::string& label);
   std::unique_ptr<daos_handle_t> get_pool_handle();
