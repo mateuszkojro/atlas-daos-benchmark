@@ -17,20 +17,25 @@
 #include <thread>
 #include <vector>
 
-std::string POOL_LABEL = "mkojro";
-UUID POOL_UUID("3cb8ac1e-f0c0-4aa1-8cd2-af72b5e44c17");
-int MIN_CHUNK_SIZE = 1024;
-int MAX_CHUNK_SIZE = 2 * 1024;
-int CHUNK_SIZE_STEP = 512;
-int INFLIGH_EVENTS_MIN = 200;
-int INFLIGH_EVENTS_MAX = 300;
-int INFLIGH_EVENTS_STEP = 300;
+#define UNUSED_RANGE benchmark::CreateDenseRange(1, 1, 1)
 
-int REPETITIONS = 1;
-int WRITES_PER_TEST = 10'000;
+std::string POOL_LABEL = "mkojro";
+// UUID POOL_UUID("3cb8ac1e-f0c0-4aa1-8cd2-af72b5e44c17");
+int MIN_CHUNK_SIZE = 1024;
+int MAX_CHUNK_SIZE = 10 * 1024;
+int CHUNK_SIZE_STEP = 512;
+int INFLIGH_EVENTS_MIN = 2;
+int INFLIGH_EVENTS_MAX = 200;
+int INFLIGH_EVENTS_STEP = 50;
+
+int REPETITIONS = 10;
+int WRITES_PER_TEST = 1'000;
 int KEYS_TO_GENERATE = WRITES_PER_TEST;
 int VALUES_TO_GENERATE = KEYS_TO_GENERATE;
-int NUMBER_OF_THREADS = 4;// std::thread::hardware_concurrency();
+
+int THREADS_MIN = 1;
+int THREADS_MAX = std::thread::hardware_concurrency();
+int THREAD_MULTIPLIER = 8;
 
 class BenchmarkState {
  public:
@@ -96,6 +101,16 @@ class BenchmarkState {
 
 int BenchmarkState::container_counter = 0;
 
+static void write_event_blocking(benchmark::State& state) {
+  BenchmarkState bstate(state.range(0));
+  int i = 0;
+  for (auto _ : state) {
+	i++;
+	bstate.get_kv_store()->write_raw(bstate.get_key(i), bstate.get_value(i),
+									 bstate.get_value_size());
+  }
+}
+
 static void creating_events_kv_sync(benchmark::State& state) {
   BenchmarkState bstate(state.range(0));
   for (auto _ : state) {
@@ -158,7 +173,7 @@ void send_requests_async(std::atomic_int32_t& sent_requests,
 
 static void creating_events_multitreaded(benchmark::State& state) {
   std::atomic_int32_t sent_requests = WRITES_PER_TEST;
-  int number_of_threads = NUMBER_OF_THREADS;
+  int number_of_threads = state.range(2);
 
   std::vector<std::unique_ptr<BenchmarkState>> states;
   for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
@@ -180,7 +195,7 @@ static void creating_events_multitreaded(benchmark::State& state) {
 
 static void creating_events_multitreaded_async(benchmark::State& state) {
   std::atomic_int32_t sent_requests = WRITES_PER_TEST;
-  int number_of_threads = NUMBER_OF_THREADS;
+  int number_of_threads = state.range(2);
 
   std::vector<std::unique_ptr<BenchmarkState>> states;
   for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
@@ -200,8 +215,18 @@ static void creating_events_multitreaded_async(benchmark::State& state) {
   }
 }
 
+BENCHMARK(write_event_blocking)
+	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
+											   CHUNK_SIZE_STEP),// Chunk size
+				   UNUSED_RANGE, UNUSED_RANGE})
+	->Repetitions(REPETITIONS)
+	->Setup([](const benchmark::State&) { daos_init(); })
+	->Teardown([](const benchmark::State&) { daos_fini(); });
+
 BENCHMARK(creating_events_kv_sync)
-	->DenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE, CHUNK_SIZE_STEP)
+	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
+											   CHUNK_SIZE_STEP),// Chunk size
+				   UNUSED_RANGE, UNUSED_RANGE})
 	->Repetitions(REPETITIONS)
 	->Setup([](const benchmark::State&) { daos_init(); })
 	->Teardown([](const benchmark::State&) { daos_fini(); });
@@ -211,13 +236,18 @@ BENCHMARK(creating_events_kv_async)
 		{benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
 									 CHUNK_SIZE_STEP),// Chunk size
 		 benchmark::CreateDenseRange(INFLIGH_EVENTS_MIN, INFLIGH_EVENTS_MAX,
-									 INFLIGH_EVENTS_STEP)})// Inflight events
+									 INFLIGH_EVENTS_STEP),// Inflight events
+		 UNUSED_RANGE})
 	->Repetitions(REPETITIONS)
 	->Setup([](const benchmark::State&) { daos_init(); })
 	->Teardown([](const benchmark::State&) { daos_fini(); });
 
 BENCHMARK(creating_events_multitreaded)
-	->DenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE, CHUNK_SIZE_STEP)
+	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
+											   CHUNK_SIZE_STEP),// Chunk size
+				   UNUSED_RANGE,
+				   benchmark::CreateRange(THREADS_MIN, THREADS_MAX,
+										  THREAD_MULTIPLIER)})// Used cores
 	->Repetitions(REPETITIONS)
 	->Setup([](const benchmark::State&) { daos_init(); })
 	->Teardown([](const benchmark::State&) { daos_fini(); });
@@ -227,13 +257,16 @@ BENCHMARK(creating_events_multitreaded_async)
 		{benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
 									 CHUNK_SIZE_STEP),// Chunk size
 		 benchmark::CreateDenseRange(INFLIGH_EVENTS_MIN, INFLIGH_EVENTS_MAX,
-									 INFLIGH_EVENTS_STEP)})// Inflight events
+									 INFLIGH_EVENTS_STEP),// Inflight events
+		 benchmark::CreateRange(THREADS_MIN, THREADS_MAX, THREAD_MULTIPLIER)})
 	->Repetitions(REPETITIONS)
 	->Setup([](const benchmark::State&) { daos_init(); })
 	->Teardown([](const benchmark::State&) { daos_fini(); });
 
 BENCHMARK(creating_events_array)
-	->DenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE, CHUNK_SIZE_STEP)
+	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
+											   CHUNK_SIZE_STEP),// Chunk size
+				   UNUSED_RANGE, UNUSED_RANGE})
 	->Repetitions(REPETITIONS)
 	->Setup([](const benchmark::State&) { daos_init(); })
 	->Teardown([](const benchmark::State&) { daos_fini(); });
