@@ -5,13 +5,12 @@
 #include "Errors.h"
 #include "daos_kv.h"
 #include "daos_types.h"
+#include "interfaces.h"
 #include <cstddef>
 #include <cstdlib>
-#include "interfaces.h"
 
-
-#include <stdexcept>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 
 class KeyValue : public DAOSObject, public IKeyValue {
@@ -25,7 +24,8 @@ class KeyValue : public DAOSObject, public IKeyValue {
 
   void write_raw(const char* key, const char* value, size_t value_size,
 				 daos_event_t* event = NULL);
-  void read_raw(const char* key);
+  void read_raw(const char* key, char* buffer, size_t* buffer_size,
+				daos_event_t* event = NULL);
 
   void change_value_raw();
 

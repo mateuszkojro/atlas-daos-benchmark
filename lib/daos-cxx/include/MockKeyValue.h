@@ -1,6 +1,7 @@
 #include "daos_types.h"
 #include "interfaces.h"
 #include "mocking.h"
+#include <cstddef>
 #include <memory>
 
 class MockKeyValue : public IKeyValue, public MockDAOSObj {
@@ -15,11 +16,9 @@ class MockKeyValue : public IKeyValue, public MockDAOSObj {
 							 key, value_size, value, event);
   }
 
-  virtual void read_raw(const char* key) {
-	const size_t buffer_size = 128;
-	char value[buffer_size];
-	size_t read_bytes = buffer_size;
+  virtual void read_raw(const char* key, char* buffer, size_t* size,
+						daos_event_t* event = NULL) {
 	mock_daos()->daos_kv_get(mock_daos()->get_mock_handle(), DAOS_TX_NONE, 0,
-							 key, &read_bytes, &value, NULL);
+							 key, size, buffer, NULL);
   }
 };

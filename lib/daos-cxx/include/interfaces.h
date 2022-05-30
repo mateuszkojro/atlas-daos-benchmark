@@ -10,7 +10,7 @@
 #define MK_UNIMPLEMENTED                                                       \
   do {                                                                         \
 	assert(false && "Unimplemented");                                          \
-	throw std::runtime_error(__PRETTY_FUNCTION__);                         \
+	throw std::runtime_error(__PRETTY_FUNCTION__);                             \
   } while (false)
 
 class IKeyValue {
@@ -18,7 +18,8 @@ class IKeyValue {
   virtual void write_raw(const char* key, const char* value, size_t value_size,
 						 daos_event_t* event = NULL) = 0;
 
-  virtual void read_raw(const char* key) = 0;
+  virtual void read_raw(const char* key, char* buffer, size_t* size,
+						daos_event_t* event = NULL) = 0;
   virtual ~IKeyValue() = default;
 };
 
