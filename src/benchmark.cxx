@@ -292,7 +292,7 @@ int main(int argc, char** argv) {
 	std::cout << "-- Connecting to the pool" << std::endl;
 
 #ifdef MOCK
-  init_opentelemetry();
+	init_opentelemetry();
 	auto log = std::make_unique<DAOSZipkinLog>();
 	auto mock_daos = std::make_shared<MockDAOS>(log.release());
 
@@ -314,7 +314,9 @@ int main(int argc, char** argv) {
 	std::cout << "-- Writing data" << std::endl;
 	kv->write_raw("key", "value", 100);
 	std::cout << "-- Reading data" << std::endl;
-	kv->read_raw("key");
+	char buffer[100];
+	size_t size = 100;
+	kv->read_raw("key", buffer, &size);
   }
 #ifndef MOCK
   DAOS_CHECK(daos_fini());
