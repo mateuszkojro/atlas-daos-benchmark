@@ -171,7 +171,42 @@ void send_requests_async(std::atomic_int32_t& sent_requests,
   bstate.wait_events();
 }
 
-static void creating_events_multitreaded(benchmark::State& state) {
+static void creating_events_multithreaded_single_container(
+	benchmark::State& state) {
+  std::atomic_int32_t sent_requests = WRITES_PER_TEST;
+  int number_of_threads = state.range(2);
+  auto bstate = std::make_unique<BenchmarkState>(state.range(0));
+  for (auto _ : state) {
+	std::vector<std::thread> threads;
+	// for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	//   threads.emplace_back(send_requests_sync, std::ref(sent_requests),
+	// 					   std::ref(bstate));
+	// }
+	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	  threads[thread_n].join();
+	}
+  }
+}
+
+static void creating_events_multithreaded_single_container_async(
+	benchmark::State& state) {
+  std::atomic_int32_t sent_requests = WRITES_PER_TEST;
+  int number_of_threads = state.range(2);
+  auto bstate = std::make_unique<BenchmarkState>(state.range(0), state.range(1));
+  for (auto _ : state) {
+	std::vector<std::thread> threads;
+	// for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	//   threads.emplace_back(send_requests_async, std::ref(sent_requests),
+	// 					   std::ref(bstate));
+	// }
+	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	  threads[thread_n].join();
+	}
+  }
+}
+
+static void creating_events_multitreaded_multiple_containers(
+	benchmark::State& state) {
   std::atomic_int32_t sent_requests = WRITES_PER_TEST;
   int number_of_threads = state.range(2);
 
