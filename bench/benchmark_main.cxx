@@ -228,13 +228,14 @@ static void creating_events_multitreaded_multiple_containers(
   }
 }
 
-static void creating_events_multitreaded_async(benchmark::State& state) {
+static void creating_events_multitreaded_multiple_containers_async(
+	benchmark::State& state) {
   std::atomic_int32_t sent_requests = WRITES_PER_TEST;
   int number_of_threads = state.range(2);
 
   std::vector<std::unique_ptr<BenchmarkState>> states;
   for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	states.emplace_back(std::make_unique<BenchmarkState>(state.range(0)));
+	states.emplace_back(std::make_unique<BenchmarkState>(state.range(0), state.range(1)));
   }
 
   for (auto _ : state) {
@@ -277,7 +278,7 @@ BENCHMARK(creating_events_kv_async)
 	->Setup([](const benchmark::State&) { daos_init(); })
 	->Teardown([](const benchmark::State&) { daos_fini(); });
 
-BENCHMARK(creating_events_multitreaded)
+BENCHMARK(creating_events_multitreaded_multiple_containers)
 	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
 											   CHUNK_SIZE_STEP),// Chunk size
 				   UNUSED_RANGE,
@@ -287,7 +288,7 @@ BENCHMARK(creating_events_multitreaded)
 	->Setup([](const benchmark::State&) { daos_init(); })
 	->Teardown([](const benchmark::State&) { daos_fini(); });
 
-BENCHMARK(creating_events_multitreaded_async)
+BENCHMARK(creating_events_multitreaded_multiple_containers_async)
 	->ArgsProduct(
 		{benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
 									 CHUNK_SIZE_STEP),// Chunk size
