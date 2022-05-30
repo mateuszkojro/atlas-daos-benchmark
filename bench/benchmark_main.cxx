@@ -29,8 +29,8 @@ int INFLIGH_EVENTS_MAX = 200;
 int INFLIGH_EVENTS_STEP = 50;
 
 int REPETITIONS = 10;
-int WRITES_PER_TEST = 1'000;
-int KEYS_TO_GENERATE = WRITES_PER_TEST;
+int REPETITIONS_PER_TEST = 1'000;
+int KEYS_TO_GENERATE = REPETITIONS_PER_TEST;
 int VALUES_TO_GENERATE = KEYS_TO_GENERATE;
 
 int THREADS_MIN = 1;
@@ -60,6 +60,7 @@ class BenchmarkState {
 	  event_queue_ = nullptr;
 	}
   }
+  const std::vector<std::string>& get_keys() const { return keys_; }
   const char* get_key(int i) const { return keys_[i % keys_.size()].c_str(); }
   size_t get_keys_count() const { return keys_.size(); }
   size_t get_values_count() const { return values_.size(); }
@@ -99,6 +100,7 @@ class BenchmarkState {
   std::vector<std::vector<char>> values_;
 };
 
+using BenchmarkStatePtr = std::unique_ptr<BenchmarkState>;
 int BenchmarkState::container_counter = 0;
 
 static void write_event_blocking(benchmark::State& state) {
@@ -114,7 +116,7 @@ static void write_event_blocking(benchmark::State& state) {
 static void creating_events_kv_sync(benchmark::State& state) {
   BenchmarkState bstate(state.range(0));
   for (auto _ : state) {
-	for (int i = 0; i < WRITES_PER_TEST; i++) {
+	for (int i = 0; i < REPETITIONS_PER_TEST; i++) {
 	  bstate.get_kv_store()->write_raw(bstate.get_key(i), bstate.get_value(i),
 									   bstate.get_value_size());
 	}
@@ -124,7 +126,7 @@ static void creating_events_kv_sync(benchmark::State& state) {
 static void creating_events_kv_async(benchmark::State& state) {
   BenchmarkState bstate(state.range(0), state.range(1));
   for (auto _ : state) {
-	for (int i = 0; i < WRITES_PER_TEST; i++) {
+	for (int i = 0; i < REPETITIONS_PER_TEST; i++) {
 	  bstate.get_kv_store()->write_raw(bstate.get_key(i), bstate.get_value(i),
 									   bstate.get_value_size(),
 									   bstate.get_event());
@@ -140,7 +142,7 @@ static void creating_events_array(benchmark::State& state) {
   auto container = pool.add_container(container_name);
   auto array_store = container->create_array();
   for (auto _ : state) {
-	for (int i = 0; i < WRITES_PER_TEST; i++) {
+	for (int i = 0; i < REPETITIONS_PER_TEST; i++) {
 	  // FIXME: Casting away const
 	  array_store->write_raw(i % bstate.get_keys_count(),
 							 (char*)bstate.get_value(i), NULL);
@@ -149,39 +151,25 @@ static void creating_events_array(benchmark::State& state) {
   pool.remove_container(container_name);
 }
 
-void send_requests_sync(std::atomic_int32_t& sent_requests,
-						BenchmarkState& bstate) {
+void do_write(std::atomic_int32_t& sent_requests, BenchmarkStatePtr& bstate) {
   int i = 0;
   while (sent_requests.fetch_sub(1) > 1) {
-	bstate.get_kv_store()->write_raw(bstate.get_key(i), bstate.get_value(i),
-									 bstate.get_value_size());
+	bstate->get_kv_store()->write_raw(bstate->get_key(i), bstate->get_value(i),
+									  bstate->get_value_size());
 	i++;
   }
-}
-
-void send_requests_async(std::atomic_int32_t& sent_requests,
-						 BenchmarkState& bstate) {
-  int i = 0;
-  while (sent_requests.fetch_sub(1) > 1) {
-	bstate.get_kv_store()->write_raw(bstate.get_key(i), bstate.get_value(i),
-									 bstate.get_value_size(),
-									 bstate.get_event());
-	i++;
-  }
-  bstate.wait_events();
 }
 
 static void creating_events_multithreaded_single_container(
 	benchmark::State& state) {
-  std::atomic_int32_t sent_requests = WRITES_PER_TEST;
+  std::atomic_int32_t sent_requests = REPETITIONS_PER_TEST;
   int number_of_threads = state.range(2);
   auto bstate = std::make_unique<BenchmarkState>(state.range(0));
   for (auto _ : state) {
 	std::vector<std::thread> threads;
-	// for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	//   threads.emplace_back(send_requests_sync, std::ref(sent_requests),
-	// 					   std::ref(bstate));
-	// }
+	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	  threads.emplace_back(do_write, std::ref(sent_requests), std::ref(bstate));
+	}
 	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
 	  threads[thread_n].join();
 	}
@@ -190,15 +178,16 @@ static void creating_events_multithreaded_single_container(
 
 static void creating_events_multithreaded_single_container_async(
 	benchmark::State& state) {
-  std::atomic_int32_t sent_requests = WRITES_PER_TEST;
+
+  std::atomic_int32_t sent_requests = REPETITIONS_PER_TEST;
   int number_of_threads = state.range(2);
-  auto bstate = std::make_unique<BenchmarkState>(state.range(0), state.range(1));
+  auto bstate =
+	  std::make_unique<BenchmarkState>(state.range(0), state.range(1));
   for (auto _ : state) {
 	std::vector<std::thread> threads;
-	// for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	//   threads.emplace_back(send_requests_async, std::ref(sent_requests),
-	// 					   std::ref(bstate));
-	// }
+	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	  threads.emplace_back(do_write, std::ref(sent_requests), std::ref(bstate));
+	}
 	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
 	  threads[thread_n].join();
 	}
@@ -207,7 +196,7 @@ static void creating_events_multithreaded_single_container_async(
 
 static void creating_events_multitreaded_multiple_containers(
 	benchmark::State& state) {
-  std::atomic_int32_t sent_requests = WRITES_PER_TEST;
+  std::atomic_int32_t sent_requests = REPETITIONS_PER_TEST;
   int number_of_threads = state.range(2);
 
   std::vector<std::unique_ptr<BenchmarkState>> states;
@@ -218,9 +207,8 @@ static void creating_events_multitreaded_multiple_containers(
   for (auto _ : state) {
 	std::vector<std::thread> threads;
 	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	  auto& bstate = *states[thread_n];
-	  threads.emplace_back(send_requests_async, std::ref(sent_requests),
-						   std::ref(bstate));
+	  auto& bstate = states[thread_n];
+	  threads.emplace_back(do_write, std::ref(sent_requests), std::ref(bstate));
 	}
 	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
 	  threads[thread_n].join();
@@ -230,20 +218,147 @@ static void creating_events_multitreaded_multiple_containers(
 
 static void creating_events_multitreaded_multiple_containers_async(
 	benchmark::State& state) {
-  std::atomic_int32_t sent_requests = WRITES_PER_TEST;
+  std::atomic_int32_t sent_requests = REPETITIONS_PER_TEST;
   int number_of_threads = state.range(2);
 
   std::vector<std::unique_ptr<BenchmarkState>> states;
   for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	states.emplace_back(std::make_unique<BenchmarkState>(state.range(0), state.range(1)));
+	states.emplace_back(
+		std::make_unique<BenchmarkState>(state.range(0), state.range(1)));
   }
 
   for (auto _ : state) {
 	std::vector<std::thread> threads;
 	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	  auto& bstate = *states[thread_n];
-	  threads.emplace_back(send_requests_async, std::ref(sent_requests),
-						   std::ref(bstate));
+	  auto& bstate = states[thread_n];
+	  threads.emplace_back(do_write, std::ref(sent_requests), std::ref(bstate));
+	}
+	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	  threads[thread_n].join();
+	}
+  }
+}
+
+// TODO: now do the same thing with read benchmarks
+
+void create_events(BenchmarkStatePtr& bstate) {
+  for (const auto& key : bstate->get_keys()) {
+	bstate->get_kv_store()->write_raw(key.c_str(), key.c_str(), key.size());
+  }
+}
+
+void do_read(std::atomic_int32_t& sent_requests, BenchmarkStatePtr& bstate) {
+  int i = 0;
+  size_t size = bstate->get_value_size();
+  char* buffer = new char[size];
+  while (sent_requests.fetch_sub(1) > 1) {
+	bstate->get_kv_store()->read_raw(bstate->get_key(i), buffer, &size,
+									 bstate->get_event());
+	i++;
+  }
+  benchmark::DoNotOptimize(buffer);
+  bstate->wait_events();
+  delete[] buffer;
+}
+
+static void reading_events_blocking(benchmark::State& state) {
+  auto bstate = std::make_unique<BenchmarkState>(state.range(0));
+  create_events(bstate);
+  size_t size = bstate->get_value_size();
+  char* buffer = new char[size];// TODO what size
+  for (auto _ : state) {
+	for (int i = 0; i < REPETITIONS_PER_TEST; i++) {
+	  bstate->get_kv_store()->read_raw(bstate->get_key(i), buffer, &size);
+	}
+  }
+  delete[] buffer;
+}
+static void reading_events_async(benchmark::State& state) {
+  auto bstate =
+	  std::make_unique<BenchmarkState>(state.range(0), state.range(1));
+  create_events(bstate);
+  size_t size = bstate->get_value_size();
+  char* buffer = new char[size];
+  for (auto _ : state) {
+	for (int i = 0; i < REPETITIONS_PER_TEST; i++) {
+	  bstate->get_kv_store()->read_raw(bstate->get_key(i), buffer, &size,
+									   bstate->get_event());
+	}
+  }
+  delete[] buffer;
+}
+
+static void reading_events_multithreaded_multiple_container_async(
+	benchmark::State& state) {
+
+  int number_of_threads = state.range(2);
+  std::atomic_int32_t sent_requests = REPETITIONS_PER_TEST;
+
+  std::vector<std::unique_ptr<BenchmarkState>> states;
+  for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	states.emplace_back(
+		std::make_unique<BenchmarkState>(state.range(0), state.range(1)));
+	create_events(states.back());
+  }
+  for (auto _ : state) {
+	std::vector<std::thread> threads;
+	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	  auto& bstate = states[thread_n];
+	  threads.emplace_back(do_read, std::ref(sent_requests), std::ref(bstate));
+	}
+	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	  threads[thread_n].join();
+	}
+  }
+}
+static void reading_events_multithreaded_multiple_container(
+	benchmark::State& state) {
+  int number_of_threads = state.range(2);
+  std::atomic_int32_t sent_requests = REPETITIONS_PER_TEST;
+
+  std::vector<std::unique_ptr<BenchmarkState>> states;
+  for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	states.emplace_back(std::make_unique<BenchmarkState>(state.range(0)));
+	create_events(states.back());
+  }
+  for (auto _ : state) {
+	std::vector<std::thread> threads;
+	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	  auto& bstate = states[thread_n];
+	  threads.emplace_back(do_read, std::ref(sent_requests), std::ref(bstate));
+	}
+	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	  threads[thread_n].join();
+	}
+  }
+}
+
+static void reading_events_multithreaded_single_container_async(
+	benchmark::State& state) {
+  std::atomic_int32_t sent_requests = REPETITIONS_PER_TEST;
+  int number_of_threads = state.range(2);
+  auto bstate =
+	  std::make_unique<BenchmarkState>(state.range(0), state.range(1));
+  for (auto _ : state) {
+	std::vector<std::thread> threads;
+	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	  threads.emplace_back(do_read, std::ref(sent_requests), std::ref(bstate));
+	}
+	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	  threads[thread_n].join();
+	}
+  }
+}
+
+static void reading_events_multithreaded_single_container(
+	benchmark::State& state) {
+  std::atomic_int32_t sent_requests = REPETITIONS_PER_TEST;
+  int number_of_threads = state.range(2);
+  auto bstate = std::make_unique<BenchmarkState>(state.range(0));
+  for (auto _ : state) {
+	std::vector<std::thread> threads;
+	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	  threads.emplace_back(do_read, std::ref(sent_requests), std::ref(bstate));
 	}
 	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
 	  threads[thread_n].join();
