@@ -113,16 +113,6 @@ static void write_event_blocking(benchmark::State& state) {
   }
 }
 
-static void creating_events_kv_sync(benchmark::State& state) {
-  BenchmarkState bstate(state.range(0));
-  for (auto _ : state) {
-	for (int i = 0; i < REPETITIONS_PER_TEST; i++) {
-	  bstate.get_kv_store()->write_raw(bstate.get_key(i), bstate.get_value(i),
-									   bstate.get_value_size());
-	}
-  }
-}
-
 static void creating_events_kv_async(benchmark::State& state) {
   BenchmarkState bstate(state.range(0), state.range(1));
   for (auto _ : state) {
@@ -333,7 +323,7 @@ static void reading_events_multithreaded_multiple_container(
   }
 }
 
-static void reading_events_multithreaded_single_container_async(
+static void read_events_multithreaded_single_container_async(
 	benchmark::State& state) {
   std::atomic_int32_t sent_requests = REPETITIONS_PER_TEST;
   int number_of_threads = state.range(2);
@@ -366,7 +356,9 @@ static void reading_events_multithreaded_single_container(
   }
 }
 
-BENCHMARK(write_event_blocking)
+
+// TODO: Add reading from array benchmark as a limit
+BENCHMARK(creating_events_array)
 	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
 											   CHUNK_SIZE_STEP),// Chunk size
 				   UNUSED_RANGE, UNUSED_RANGE})
@@ -374,7 +366,9 @@ BENCHMARK(write_event_blocking)
 	->Setup([](const benchmark::State&) { daos_init(); })
 	->Teardown([](const benchmark::State&) { daos_fini(); });
 
-BENCHMARK(creating_events_kv_sync)
+// WRITING BENCHMARKS
+
+BENCHMARK(write_event_blocking)
 	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
 											   CHUNK_SIZE_STEP),// Chunk size
 				   UNUSED_RANGE, UNUSED_RANGE})
@@ -414,10 +408,85 @@ BENCHMARK(creating_events_multitreaded_multiple_containers_async)
 	->Setup([](const benchmark::State&) { daos_init(); })
 	->Teardown([](const benchmark::State&) { daos_fini(); });
 
-BENCHMARK(creating_events_array)
+BENCHMARK(creating_events_multithreaded_single_container)
+	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
+											   CHUNK_SIZE_STEP),// Chunk size
+				   UNUSED_RANGE,
+				   benchmark::CreateRange(THREADS_MIN, THREADS_MAX,
+										  THREAD_MULTIPLIER)})// Used cores
+	->Repetitions(REPETITIONS)
+	->Setup([](const benchmark::State&) { daos_init(); })
+	->Teardown([](const benchmark::State&) { daos_fini(); });
+
+BENCHMARK(creating_events_multithreaded_single_container_async)
+	->ArgsProduct(
+		{benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
+									 CHUNK_SIZE_STEP),// Chunk size
+		 benchmark::CreateDenseRange(INFLIGH_EVENTS_MIN, INFLIGH_EVENTS_MAX,
+									 INFLIGH_EVENTS_STEP),// Inflight events
+		 benchmark::CreateRange(THREADS_MIN, THREADS_MAX, THREAD_MULTIPLIER)})
+	->Repetitions(REPETITIONS)
+	->Setup([](const benchmark::State&) { daos_init(); })
+	->Teardown([](const benchmark::State&) { daos_fini(); });
+
+// READING BENCHMARKS
+
+BENCHMARK(reading_events_blocking)
 	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
 											   CHUNK_SIZE_STEP),// Chunk size
 				   UNUSED_RANGE, UNUSED_RANGE})
+	->Repetitions(REPETITIONS)
+	->Setup([](const benchmark::State&) { daos_init(); })
+	->Teardown([](const benchmark::State&) { daos_fini(); });
+
+BENCHMARK(reading_events_async)
+	->ArgsProduct(
+		{benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
+									 CHUNK_SIZE_STEP),// Chunk size
+		 benchmark::CreateDenseRange(INFLIGH_EVENTS_MIN, INFLIGH_EVENTS_MAX,
+									 INFLIGH_EVENTS_STEP),// Inflight events
+		 UNUSED_RANGE})
+	->Repetitions(REPETITIONS)
+	->Setup([](const benchmark::State&) { daos_init(); })
+	->Teardown([](const benchmark::State&) { daos_fini(); });
+
+BENCHMARK(reading_events_multithreaded_multiple_container)
+	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
+											   CHUNK_SIZE_STEP),// Chunk size
+				   UNUSED_RANGE,
+				   benchmark::CreateRange(THREADS_MIN, THREADS_MAX,
+										  THREAD_MULTIPLIER)})// Used cores
+	->Repetitions(REPETITIONS)
+	->Setup([](const benchmark::State&) { daos_init(); })
+	->Teardown([](const benchmark::State&) { daos_fini(); });
+
+BENCHMARK(reading_events_multithreaded_multiple_container_async)
+	->ArgsProduct(
+		{benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
+									 CHUNK_SIZE_STEP),// Chunk size
+		 benchmark::CreateDenseRange(INFLIGH_EVENTS_MIN, INFLIGH_EVENTS_MAX,
+									 INFLIGH_EVENTS_STEP),// Inflight events
+		 benchmark::CreateRange(THREADS_MIN, THREADS_MAX, THREAD_MULTIPLIER)})
+	->Repetitions(REPETITIONS)
+	->Setup([](const benchmark::State&) { daos_init(); })
+	->Teardown([](const benchmark::State&) { daos_fini(); });
+
+BENCHMARK(reading_events_multithreaded_single_container)
+	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
+											   CHUNK_SIZE_STEP),// Chunk size
+				   UNUSED_RANGE,
+				   benchmark::CreateRange(THREADS_MIN, THREADS_MAX,
+										  THREAD_MULTIPLIER)})// Used cores
+	->Repetitions(REPETITIONS)
+	->Setup([](const benchmark::State&) { daos_init(); })
+	->Teardown([](const benchmark::State&) { daos_fini(); });
+
+BENCHMARK(read_events_multithreaded_single_container_async)
+	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
+											   CHUNK_SIZE_STEP),// Chunk size
+				   UNUSED_RANGE,
+				   benchmark::CreateRange(THREADS_MIN, THREADS_MAX,
+										  THREAD_MULTIPLIER)})// Used cores
 	->Repetitions(REPETITIONS)
 	->Setup([](const benchmark::State&) { daos_init(); })
 	->Teardown([](const benchmark::State&) { daos_fini(); });
