@@ -21,12 +21,12 @@ add_compile_options(-ggdb -fdiagnostics-color=always
 add_compile_options(-Wall -Wno-comment -Wpedantic -Wno-c99-extensions -Wno-unused-private-field -Wno-c++98-compat-pedantic)
 
 add_subdirectory(lib/daos-cxx)
-add_subdirectory(bench)
+add_subdirectory(micro-bench)
 
-add_executable(${TARGET} src/benchmark.cxx)
+add_executable(${TARGET} synthetic-bench/benchmark.cxx)
 
 target_link_libraries(${TARGET} daos-cxx)
-target_include_directories(${TARGET} PUBLIC src/daos-cxx/include)
+target_include_directories(${TARGET} PUBLIC synthetic-bench/daos-cxx/include)
 
 add_custom_target(install_docker
     COMMAND docker cp ${TARGET} ${DAOS_DOCKER_IMG}:/

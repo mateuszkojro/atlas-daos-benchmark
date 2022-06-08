@@ -1,5 +1,5 @@
 [submodule "bench/benchmark"]
-	path = bench/benchmark
+	path = micro-bench/benchmark
 	url = https://github.com/google/benchmark
 [submodule "lib/daos-cxx"]
 	path = lib/daos-cxx
