@@ -1,4 +1,3 @@
-#include "DAOSZipkinLog.h"
 #include "EventQueue.h"
 #include "MockPool.h"
 #include "Pool.h"
@@ -97,7 +96,8 @@ class BenchmarkState {
 	  auto start = std::chrono::high_resolution_clock::now();
 	  event_queue_->wait();
 	  auto end = std::chrono::high_resolution_clock::now();
-	  return std::chrono::duration_cast<std::chrono::nanoseconds>(end-start).count();
+	  return std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
+		  .count();
 	}
 	return 0;
   }
@@ -239,24 +239,7 @@ static void creating_events_multitreaded_multiple_containers_async(
 	states.emplace_back(
 		std::make_unique<BenchmarkState>(state.range(0), state.range(1)));
   }
-  for (auto _ : state) {
-	std::vector<std::thread> threads;
-	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	  auto& bstate = states[thread_n];
-	  threads.emplace_back(do_read, std::ref(sent_requests), std::ref(bstate));
-	}
-	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	  threads[thread_n].join();
-	}
-  }
-}
 
-static void read_events_multithreaded_single_container_async(
-	benchmark::State& state) {
-  std::atomic_int32_t sent_requests = REPETITIONS_PER_TEST;
-  int number_of_threads = state.range(2);
-  auto bstate =
-	  std::make_unique<BenchmarkState>(state.range(0), state.range(1));
   for (auto _ : state) {
 	std::vector<std::thread> threads;
 	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
@@ -283,7 +266,7 @@ void do_read(std::atomic_int32_t& sent_requests, BenchmarkStatePtr& bstate) {
   size_t size = bstate->get_value_size();
   char* buffer = new char[size];
   while (sent_requests.fetch_sub(1) > 1) {
-	bstate->get_kv_store()->read_raw(bstate->get_key(i), buffer, &size,
+	bstate->get_kv_store()->read_raw(bstate->get_key(i), buffer, size,
 									 bstate->get_event());
 	i++;
   }
@@ -298,7 +281,7 @@ static void reading_events_blocking(benchmark::State& state) {
   char* buffer = new char[size];// TODO what size
   for (auto _ : state) {
 	for (int i = 0; i < REPETITIONS_PER_TEST; i++) {
-	  bstate->get_kv_store()->read_raw(bstate->get_key(i), buffer, &size);
+	  bstate->get_kv_store()->read_raw(bstate->get_key(i), buffer, size);
 	}
   }
   delete[] buffer;
@@ -311,7 +294,7 @@ static void reading_events_async(benchmark::State& state) {
   char* buffer = new char[size];
   for (auto _ : state) {
 	for (int i = 0; i < REPETITIONS_PER_TEST; i++) {
-	  bstate->get_kv_store()->read_raw(bstate->get_key(i), buffer, &size,
+	  bstate->get_kv_store()->read_raw(bstate->get_key(i), buffer, size,
 									   bstate->get_event());
 	}
   }
