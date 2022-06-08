@@ -239,7 +239,24 @@ static void creating_events_multitreaded_multiple_containers_async(
 	states.emplace_back(
 		std::make_unique<BenchmarkState>(state.range(0), state.range(1)));
   }
+  for (auto _ : state) {
+	std::vector<std::thread> threads;
+	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	  auto& bstate = states[thread_n];
+	  threads.emplace_back(do_read, std::ref(sent_requests), std::ref(bstate));
+	}
+	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	  threads[thread_n].join();
+	}
+  }
+}
 
+static void read_events_multithreaded_single_container_async(
+	benchmark::State& state) {
+  std::atomic_int32_t sent_requests = REPETITIONS_PER_TEST;
+  int number_of_threads = state.range(2);
+  auto bstate =
+	  std::make_unique<BenchmarkState>(state.range(0), state.range(1));
   for (auto _ : state) {
 	std::vector<std::thread> threads;
 	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
