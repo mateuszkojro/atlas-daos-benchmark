@@ -145,6 +145,21 @@ using BenchmarkStatePtr = std::unique_ptr<BenchmarkState>;
 size_t BenchmarkState::container_counter = 0;
 size_t BenchmarkState::seed = time(NULL);
 
+static void baseline_BenchmarkState_usage(benchmark::State& state) {
+  BenchmarkState bstate(state.range(0));
+  int i = 0;
+  for (auto _ : state) {
+	const char* key = bstate.get_key(i);
+	const char* value = bstate.get_value(i);
+	size_t size = bstate.get_value_size();
+	KeyValuePtr& kv = bstate.get_kv_store();
+	benchmark::DoNotOptimize(key);
+	benchmark::DoNotOptimize(value);
+	benchmark::DoNotOptimize(size);
+	benchmark::DoNotOptimize(kv);
+  }
+}
+
 static void write_event_blocking(benchmark::State& state) {
   BenchmarkState bstate(state.range(0));
   int i = 0;
@@ -401,6 +416,14 @@ static void reading_events_multithreaded_single_container(
 	}
   }
 }
+
+BENCHMARK(baseline_BenchmarkState_usage)
+	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
+											   CHUNK_SIZE_STEP),// Chunk size
+				   UNUSED_RANGE, UNUSED_RANGE})
+	->Repetitions(REPETITIONS)
+	->Setup([](const benchmark::State&) { daos_init(); })
+	->Teardown([](const benchmark::State&) { daos_fini(); });
 
 // TODO: Add reading from array benchmark as a limit
 BENCHMARK(creating_events_array)
