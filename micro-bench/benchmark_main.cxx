@@ -4,6 +4,7 @@
 #include "UUID.h"
 #include "daos_types.h"
 #include "interfaces.h"
+#include <algorithm>
 #include <atomic>
 #include <benchmark/benchmark.h>
 #include <bits/types/time_t.h>
@@ -11,12 +12,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <fstream>
 #include <functional>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <sys/resource.h>
 #include <thread>
 #include <vector>
 
@@ -48,12 +51,32 @@ int THREADS_MIN = 1;
 int THREADS_MAX = std::thread::hardware_concurrency();
 int THREAD_MULTIPLIER = 4;
 
+int try_set_open_fd_soft_limit(unsigned long no_fd) {
+  rlimit limit = {};
+  int err = 0;
+  err = getrlimit(RLIMIT_NOFILE, &limit);
+  if (err != 0) {
+	goto error;
+  }
+  limit.rlim_cur = std::clamp(no_fd, 0UL, limit.rlim_max);
+  err = setrlimit(RLIMIT_NOFILE, &limit);
+  if (err != 0) {
+	goto error;
+  }
+  return err;
+
+error:
+  std::cout << "ERR: Limit could not be set: " << strerror(errno) << std::endl;
+  return err;
+}
+
 class BenchmarkState {
  public:
   BenchmarkState(size_t value_size, int events_inflight = -1)
 	  : pool_(std::make_unique<Pool>(POOL_LABEL)), value_size_(value_size),
 		keys_(KEYS_TO_GENERATE), values_(VALUES_TO_GENERATE) {
 	srand(seed);
+	try_set_open_fd_soft_limit(200'000);
 	// Initialise keys to random strings
 	for (auto& key : keys_) { key = std::to_string(rand()); }
 	// Initialise values with given size
