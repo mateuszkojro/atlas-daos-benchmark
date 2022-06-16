@@ -116,11 +116,10 @@ class BenchmarkState {
 
   uint64_t wait_events() {
 	if (event_queue_) {
-	  auto start = std::chrono::high_resolution_clock::now();
 	  event_queue_->wait();
-	  auto end = std::chrono::high_resolution_clock::now();
-	  return std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
-		  .count();
+	  size_t waiting_time = event_queue_->waiting_time_.load();
+	  event_queue_->waiting_time_.store(0);
+	  return waiting_time;
 	}
 	return 0;
   }
@@ -164,7 +163,8 @@ static void creating_events_kv_async(benchmark::State& state) {
 									   bstate.get_value_size(),
 									   bstate.get_event());
 	}
-	state.counters["pooling_time_ns"] += bstate.wait_events();
+	state.counters["pooling_time_ns"] +=
+		bstate.wait_events();// FIXMR: Thats not that
   }
 }
 
