@@ -29,8 +29,8 @@
 std::string POOL_LABEL = "mkojro";
 // UUID POOL_UUID("3cb8ac1e-f0c0-4aa1-8cd2-af72b5e44c17");
 int MIN_CHUNK_SIZE = 1024;
-int MAX_CHUNK_SIZE = 10 * 1024;
-int CHUNK_SIZE_STEP = 1024;
+int MAX_CHUNK_SIZE = 50 * 1024;
+int CHUNK_SIZE_STEP = 2048;
 int INFLIGH_EVENTS_MIN = 1;
 int INFLIGH_EVENTS_MAX = 200;
 int INFLIGH_EVENTS_STEP = 25;
@@ -461,15 +461,15 @@ BENCHMARK(creating_events_multitreaded_multiple_containers)
 	->Teardown([](const benchmark::State&) { daos_fini(); });
 
 // BENCHMARK(creating_events_multitreaded_multiple_containers_async)
-// 	->ArgsProduct(
-// 		{benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
-// 									 CHUNK_SIZE_STEP),// Chunk size
-// 		 benchmark::CreateDenseRange(INFLIGH_EVENTS_MIN, INFLIGH_EVENTS_MAX,
-// 									 INFLIGH_EVENTS_STEP),// Inflight events
-// 		 benchmark::CreateRange(THREADS_MIN, THREADS_MAX, THREAD_MULTIPLIER)})
-// 	->Repetitions(REPETITIONS)
-// 	->Setup([](const benchmark::State&) { daos_init(); })
-// 	->Teardown([](const benchmark::State&) { daos_fini(); });
+//	->ArgsProduct(
+//		{benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
+//									 CHUNK_SIZE_STEP),// Chunk size
+//		 benchmark::CreateDenseRange(INFLIGH_EVENTS_MIN, INFLIGH_EVENTS_MAX,
+//									 INFLIGH_EVENTS_STEP),// Inflight events
+//		 benchmark::CreateRange(THREADS_MIN, THREADS_MAX, THREAD_MULTIPLIER)})
+//	->Repetitions(REPETITIONS)
+//	->Setup([](const benchmark::State&) { daos_init(); })
+//	->Teardown([](const benchmark::State&) { daos_fini(); });
 
 BENCHMARK(creating_events_multithreaded_single_container)
 	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
@@ -548,14 +548,14 @@ BENCHMARK(creating_events_multithreaded_single_container)
 // 	->Teardown([](const benchmark::State&) { daos_fini(); });
 
 // BENCHMARK(creating_events_multithreaded_single_container_async)
-// 	->ArgsProduct(
-// 		{benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
-// 									 CHUNK_SIZE_STEP),// Chunk size
-// 		 benchmark::CreateDenseRange(INFLIGH_EVENTS_MIN, INFLIGH_EVENTS_MAX,
-// 									 INFLIGH_EVENTS_STEP),// Inflight events
-// 		 benchmark::CreateRange(THREADS_MIN, THREADS_MAX, THREAD_MULTIPLIER)})
-// 	->Repetitions(REPETITIONS)
-// 	->Setup([](const benchmark::State&) { daos_init(); })
-// 	->Teardown([](const benchmark::State&) { daos_fini(); });
+//	->ArgsProduct(
+//		{benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
+//									 CHUNK_SIZE_STEP),// Chunk size
+//		 benchmark::CreateDenseRange(INFLIGH_EVENTS_MIN, INFLIGH_EVENTS_MAX,
+//									 INFLIGH_EVENTS_STEP),// Inflight events
+//		 benchmark::CreateRange(THREADS_MIN, THREADS_MAX, THREAD_MULTIPLIER)})
+//	->Repetitions(REPETITIONS)
+//	->Setup([](const benchmark::State&) { daos_init(); })
+//	->Teardown([](const benchmark::State&) { daos_fini(); });
 
 BENCHMARK_MAIN();
