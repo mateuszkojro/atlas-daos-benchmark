@@ -21,6 +21,7 @@ add_compile_options(-ggdb -fdiagnostics-color=always
 add_compile_options(-Wall -Wno-comment -Wpedantic -Wno-c99-extensions -Wno-unused-private-field -Wno-c++98-compat-pedantic)
 
 add_subdirectory(lib/daos-cxx)
+add_subdirectory(lib/c-backtrace)
 add_subdirectory(micro-bench)
 
 add_executable(${TARGET} synthetic-bench/benchmark.cxx)

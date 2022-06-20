@@ -2,6 +2,7 @@
 #include "MockPool.h"
 #include "Pool.h"
 #include "UUID.h"
+#include "backtrace.h"
 #include "daos_types.h"
 #include "interfaces.h"
 #include <algorithm>
@@ -70,13 +71,52 @@ error:
   return err;
 }
 
+#define bench_print(format_string) printf("[bench] " format_string "\n")
+
+#define bench_printf(format_string, ...)                                       \
+  printf("[bench] " format_string "\n", __VA_ARGS__)
+
+#define bench_ensure(condition, description)                                   \
+  do {                                                                         \
+	std::cout << "[bench] " << description << "\t:\t";                                    \
+	if (condition) {                                                           \
+	  std::cout << "OK\n";                                                     \
+	} else {                                                                   \
+	  std::cout << "FAIL\n";                                                   \
+	}                                                                          \
+  } while (false)
+
+class Config {
+ public:
+  static Config* get_instance() {
+	if (instance_ == nullptr) {
+	  instance_ = new Config();
+	}
+	return instance_;
+  }
+
+ private:
+  Config() {
+	// Initialisation
+	bench_print("Seeding random");
+	srand(time(NULL));
+	bench_ensure(try_set_open_fd_soft_limit(200'000) == 0,
+				 "Trying to increase fd count limit");
+	bench_ensure(bt_init() == 0, "Register backtrace handlers");
+  }
+
+  static Config* instance_;
+};
+Config* Config::instance_ = nullptr;
+
 class BenchmarkState {
  public:
   BenchmarkState(size_t value_size, int events_inflight = -1)
 	  : pool_(std::make_unique<Pool>(POOL_LABEL)), value_size_(value_size),
 		keys_(KEYS_TO_GENERATE), values_(VALUES_TO_GENERATE) {
-	srand(seed);
-	try_set_open_fd_soft_limit(200'000);
+	
+	config_ = Config::get_instance();
+	
 	// Initialise keys to random strings
 	for (auto& key : keys_) { key = std::to_string(rand()); }
 	// Initialise values with given size
@@ -127,8 +167,8 @@ class BenchmarkState {
   ~BenchmarkState() { pool_->remove_container(container_name_); }
 
  private:
+  Config* config_ = nullptr;
   static size_t container_counter;
-  static size_t seed;
   std::string container_name_;
 
   std::unique_ptr<Pool> pool_;
@@ -143,7 +183,6 @@ class BenchmarkState {
 
 using BenchmarkStatePtr = std::unique_ptr<BenchmarkState>;
 size_t BenchmarkState::container_counter = 0;
-size_t BenchmarkState::seed = time(NULL);
 
 static void baseline_BenchmarkState_usage(benchmark::State& state) {
   BenchmarkState bstate(state.range(0));

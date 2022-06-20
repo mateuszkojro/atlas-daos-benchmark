@@ -4,3 +4,6 @@
 [submodule "lib/daos-cxx"]
 	path = lib/daos-cxx
 	url = git@github.com:mateuszkojro/daos-cxx
+[submodule "lib/c-backtrace"]
+	path = lib/c-backtrace
+	url = https://github.com/mateuszkojro/c-backtrace
