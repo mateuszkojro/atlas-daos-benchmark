@@ -3,8 +3,10 @@
 #include "Pool.h"
 #include "UUID.h"
 #include "backtrace.h"
+#include "daos.h"
 #include "daos_types.h"
 #include "interfaces.h"
+#include "toml.h"
 #include <algorithm>
 #include <atomic>
 #include <benchmark/benchmark.h>
@@ -19,6 +21,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <sys/resource.h>
 #include <thread>
@@ -27,30 +30,12 @@
 #define UNUSED_RANGE benchmark::CreateDenseRange(1, 1, 1)
 #define BENCHMARK_POOLING
 
-std::string POOL_LABEL = "mkojro";
-// UUID POOL_UUID("3cb8ac1e-f0c0-4aa1-8cd2-af72b5e44c17");
-int MIN_CHUNK_SIZE = 1024;
-int MAX_CHUNK_SIZE = 50 * 1024;
-int CHUNK_SIZE_STEP = 2048;
-int INFLIGH_EVENTS_MIN = 1;
-int INFLIGH_EVENTS_MAX = 200;
-int INFLIGH_EVENTS_STEP = 25;
-
-int REPETITIONS = 2;
-int REPETITIONS_PER_TEST = 1'000;
+const size_t REPETITIONS = 1;
+const size_t REPETITIONS_PER_TEST = 1'000;
 int KEYS_TO_GENERATE = REPETITIONS_PER_TEST;
 int VALUES_TO_GENERATE = KEYS_TO_GENERATE;
 
-auto KV_ASYNC_RNAGE = {
-	benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
-								CHUNK_SIZE_STEP),// Chunk size
-	benchmark::CreateRange(INFLIGH_EVENTS_MIN, INFLIGH_EVENTS_MAX,
-						   4),// Inflight events
-	UNUSED_RANGE};
-
-int THREADS_MIN = 1;
-int THREADS_MAX = std::thread::hardware_concurrency();
-int THREAD_MULTIPLIER = 4;
+std::string POOL_LABEL = "mkojro";
 
 int try_set_open_fd_soft_limit(unsigned long no_fd) {
   rlimit limit = {};
@@ -88,24 +73,75 @@ error:
 
 class Config {
  public:
-  static Config* get_instance() {
+  enum {
+	NONE = 0,
+	WITH_CHNUK_SIZE = 1 << 0,
+	WITH_THREADS = 1 << 1,
+	WITH_EVENTS = 1 << 2
+  };
+
+  //   static void parse_config(std::string path) { instance_ = new
+  //   Config(path); }
+  static Config* instance() {
 	if (instance_ == nullptr) {
-	  instance_ = new Config();
+	  instance_ = new Config("micro_benchmark_config.toml");
 	}
 	return instance_;
   }
 
+  std::vector<int64_t> get_range_for_variable(std::string variable) {
+	std::string range_type =
+		configuration_file_[variable]["range_type"].value_or("log");
+	auto min = configuration_file_[variable]["min"].value_or(1);
+	auto max = configuration_file_[variable]["max"].value_or(1);
+	auto step = configuration_file_[variable]["step"].value_or(2);
+	std::vector<int64_t> range;
+	if (range_type == "log") {
+	  range = benchmark::CreateRange(min, max, step);
+	} else if (range_type == "dense") {
+	  range = benchmark::CreateDenseRange(min, max, step);
+	} else {
+	  throw std::runtime_error(
+		  "Bad options for range_type avaliable: 'dense', 'log'");
+	}
+	return range;
+  }
+
+  std::vector<std::vector<int64_t>> get_range(int options) {
+	std::vector<std::vector<int64_t>> ranges(3, UNUSED_RANGE);
+	bool with_chunk_size_set = options & Config::WITH_CHNUK_SIZE;
+	bool with_inflight_set = options & Config::WITH_EVENTS;
+	bool with_threads_set = options & Config::WITH_THREADS;
+	if (with_chunk_size_set) {
+	  ranges[0] = get_range_for_variable("chunk_size");
+	}
+	if (with_inflight_set) {
+	  ranges[1] = get_range_for_variable("inflight_events");
+	}
+	if (with_threads_set) {
+	  ranges[2] = get_range_for_variable("threads");
+	}
+	return ranges;
+  }
+
+  static void close() { delete instance_; }
+
  private:
-  Config() {
+  void configure_system() {
 	// Initialisation
 	bench_print("Seeding random");
 	srand(time(NULL));
-	bench_ensure(try_set_open_fd_soft_limit(200'000) == 0,
-				 "Trying to increase fd count limit");
-	bench_ensure(bt_init() == 0, "Register backtrace handlers");
+	bench_check(try_set_open_fd_soft_limit(200'000) == 0,
+				"Trying to increase fd count limit");
+	bench_check(bt_init() == 0, "Register backtrace handlers");
+  }
+  Config(std::string path) {
+	configure_system();
+	configuration_file_ = toml::parse_file(path);
   }
 
   static Config* instance_;
+  toml::parse_result configuration_file_;
 };
 Config* Config::instance_ = nullptr;
 
@@ -351,250 +387,55 @@ void do_read(std::atomic_int32_t& sent_requests, BenchmarkStatePtr& bstate) {
   delete[] buffer;
 }
 
-static void reading_events_blocking(benchmark::State& state) {
-  auto bstate = std::make_unique<BenchmarkState>(state.range(0));
-  create_events(bstate);
-  size_t size = bstate->get_value_size();
-  char* buffer = new char[size];// TODO what size
-  for (auto _ : state) {
-	for (int i = 0; i < REPETITIONS_PER_TEST; i++) {
-	  bstate->get_kv_store()->read_raw(bstate->get_key(i), buffer, size);
-	}
-  }
-  delete[] buffer;
-}
-static void reading_events_async(benchmark::State& state) {
-  auto bstate =
-	  std::make_unique<BenchmarkState>(state.range(0), state.range(1));
-  create_events(bstate);
-  size_t size = bstate->get_value_size();
-  char* buffer = new char[size];
-  for (auto _ : state) {
-	for (int i = 0; i < REPETITIONS_PER_TEST; i++) {
-	  bstate->get_kv_store()->read_raw(bstate->get_key(i), buffer, size,
-									   bstate->get_event());
-	}
-  }
-  delete[] buffer;
-}
-
-static void reading_events_multithreaded_multiple_container_async(
-	benchmark::State& state) {
-
-  int number_of_threads = state.range(2);
-  std::atomic_int32_t sent_requests = REPETITIONS_PER_TEST;
-
-  std::vector<std::unique_ptr<BenchmarkState>> states;
-  for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	states.emplace_back(
-		std::make_unique<BenchmarkState>(state.range(0), state.range(1)));
-	create_events(states.back());
-  }
-  for (auto _ : state) {
-	std::vector<std::thread> threads;
-	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	  auto& bstate = states[thread_n];
-	  threads.emplace_back(do_read, std::ref(sent_requests), std::ref(bstate));
-	}
-	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	  threads[thread_n].join();
-	}
-  }
-}
-static void reading_events_multithreaded_multiple_container(
-	benchmark::State& state) {
-  int number_of_threads = state.range(2);
-  std::atomic_int32_t sent_requests = REPETITIONS_PER_TEST;
-
-  std::vector<std::unique_ptr<BenchmarkState>> states;
-  for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	states.emplace_back(std::make_unique<BenchmarkState>(state.range(0)));
-	create_events(states.back());
-  }
-  for (auto _ : state) {
-	std::vector<std::thread> threads;
-	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	  auto& bstate = states[thread_n];
-	  threads.emplace_back(do_read, std::ref(sent_requests), std::ref(bstate));
-	}
-	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	  threads[thread_n].join();
-	}
-  }
-}
-
-static void read_events_multithreaded_single_container_async(
-	benchmark::State& state) {
-  std::atomic_int32_t sent_requests = REPETITIONS_PER_TEST;
-  int number_of_threads = state.range(2);
-  auto bstate =
-	  std::make_unique<BenchmarkState>(state.range(0), state.range(1));
-  for (auto _ : state) {
-	std::vector<std::thread> threads;
-	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	  threads.emplace_back(do_read, std::ref(sent_requests), std::ref(bstate));
-	}
-	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	  threads[thread_n].join();
-	}
-  }
-}
-
-static void reading_events_multithreaded_single_container(
-	benchmark::State& state) {
-  std::atomic_int32_t sent_requests = REPETITIONS_PER_TEST;
-  int number_of_threads = state.range(2);
-  auto bstate = std::make_unique<BenchmarkState>(state.range(0));
-  for (auto _ : state) {
-	std::vector<std::thread> threads;
-	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	  threads.emplace_back(do_read, std::ref(sent_requests), std::ref(bstate));
-	}
-	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	  threads[thread_n].join();
-	}
-  }
-}
 
 BENCHMARK(baseline_BenchmarkState_usage)
-	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
-											   CHUNK_SIZE_STEP),// Chunk size
-				   UNUSED_RANGE, UNUSED_RANGE})
-	->Repetitions(REPETITIONS)
-	->Setup([](const benchmark::State&) { daos_init(); })
-	->Teardown([](const benchmark::State&) { daos_fini(); });
+	->ArgsProduct(Config::instance()->get_range(Config::NONE))
+	->Repetitions(REPETITIONS);
 
-// TODO: Add reading from array benchmark as a limit
 BENCHMARK(creating_events_array)
-	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
-											   CHUNK_SIZE_STEP),// Chunk size
-				   UNUSED_RANGE, UNUSED_RANGE})
-	->Repetitions(REPETITIONS)
-	->Setup([](const benchmark::State&) { daos_init(); })
-	->Teardown([](const benchmark::State&) { daos_fini(); });
-
-// WRITING BENCHMARKS
+	->ArgsProduct(Config::instance()->get_range(Config::WITH_CHNUK_SIZE))
+	->Repetitions(REPETITIONS);
 
 BENCHMARK(write_event_blocking)
-	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
-											   CHUNK_SIZE_STEP),// Chunk size
-				   UNUSED_RANGE, UNUSED_RANGE})
-	->Repetitions(REPETITIONS)
-	->Setup([](const benchmark::State&) { daos_init(); })
-	->Teardown([](const benchmark::State&) { daos_fini(); });
+	->ArgsProduct(Config::instance()->get_range(Config::WITH_CHNUK_SIZE))
+	->Repetitions(REPETITIONS);
 
 BENCHMARK(creating_events_kv_async)
-	->ArgsProduct(KV_ASYNC_RNAGE)
-	->Repetitions(REPETITIONS)
-	->Setup([](const benchmark::State&) { daos_init(); })
-	->Teardown([](const benchmark::State&) { daos_fini(); });
+	->ArgsProduct(Config::instance()->get_range(Config::WITH_CHNUK_SIZE
+												| Config::WITH_EVENTS))
+	->Repetitions(REPETITIONS);
 
 BENCHMARK(creating_events_multitreaded_multiple_containers)
-	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
-											   CHUNK_SIZE_STEP),// Chunk size
-				   UNUSED_RANGE,
-				   benchmark::CreateRange(THREADS_MIN, THREADS_MAX,
-										  THREAD_MULTIPLIER)})// Used cores
-	->Repetitions(REPETITIONS)
-	->Setup([](const benchmark::State&) { daos_init(); })
-	->Teardown([](const benchmark::State&) { daos_fini(); });
+	->ArgsProduct(Config::instance()->get_range(Config::WITH_CHNUK_SIZE
+												| Config::WITH_THREADS))
+	->Repetitions(REPETITIONS);
 
-// BENCHMARK(creating_events_multitreaded_multiple_containers_async)
-//	->ArgsProduct(
-//		{benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
-//									 CHUNK_SIZE_STEP),// Chunk size
-//		 benchmark::CreateDenseRange(INFLIGH_EVENTS_MIN, INFLIGH_EVENTS_MAX,
-//									 INFLIGH_EVENTS_STEP),// Inflight events
-//		 benchmark::CreateRange(THREADS_MIN, THREADS_MAX, THREAD_MULTIPLIER)})
-//	->Repetitions(REPETITIONS)
-//	->Setup([](const benchmark::State&) { daos_init(); })
-//	->Teardown([](const benchmark::State&) { daos_fini(); });
+BENCHMARK(creating_events_multitreaded_multiple_containers_async)
+	->ArgsProduct(Config::instance()->get_range(Config::WITH_CHNUK_SIZE
+												| Config::WITH_EVENTS
+												| Config::WITH_THREADS))
+	->Repetitions(REPETITIONS);
 
 BENCHMARK(creating_events_multithreaded_single_container)
-	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
-											   CHUNK_SIZE_STEP),// Chunk size
-				   UNUSED_RANGE,
-				   benchmark::CreateRange(THREADS_MIN, THREADS_MAX,
-										  THREAD_MULTIPLIER)})// Used cores
-	->Repetitions(REPETITIONS)
-	->Setup([](const benchmark::State&) { daos_init(); })
-	->Teardown([](const benchmark::State&) { daos_fini(); });
+	->ArgsProduct(Config::instance()->get_range(Config::WITH_CHNUK_SIZE
+												| Config::WITH_EVENTS
+												| Config::WITH_THREADS))
+	->Repetitions(REPETITIONS);
 
-// READING BENCHMARKS
+BENCHMARK(creating_events_multithreaded_single_container_async)
+	->ArgsProduct(Config::instance()->get_range(Config::WITH_CHNUK_SIZE
+												| Config::WITH_EVENTS
+												| Config::WITH_THREADS))
+	->Repetitions(REPETITIONS);
 
-// BENCHMARK(reading_events_blocking)
-// 	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
-// 											   CHUNK_SIZE_STEP),// Chunk size
-// 				   UNUSED_RANGE, UNUSED_RANGE})
-// 	->Repetitions(REPETITIONS)
-// 	->Setup([](const benchmark::State&) { daos_init(); })
-// 	->Teardown([](const benchmark::State&) { daos_fini(); });
-
-// BENCHMARK(reading_events_async)
-// 	->ArgsProduct(
-// 		{benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
-// 									 CHUNK_SIZE_STEP),// Chunk size
-// 		 benchmark::CreateDenseRange(INFLIGH_EVENTS_MIN, INFLIGH_EVENTS_MAX,
-// 									 INFLIGH_EVENTS_STEP),// Inflight events
-// 		 UNUSED_RANGE})
-// 	->Repetitions(REPETITIONS)
-// 	->Setup([](const benchmark::State&) { daos_init(); })
-// 	->Teardown([](const benchmark::State&) { daos_fini(); });
-
-// BENCHMARK(reading_events_multithreaded_multiple_container)
-// 	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
-// 											   CHUNK_SIZE_STEP),// Chunk size
-// 				   UNUSED_RANGE,
-// 				   benchmark::CreateRange(THREADS_MIN, THREADS_MAX,
-// 										  THREAD_MULTIPLIER)})// Used cores
-// 	->Repetitions(REPETITIONS)
-// 	->Setup([](const benchmark::State&) { daos_init(); })
-// 	->Teardown([](const benchmark::State&) { daos_fini(); });
-
-// // BENCHMARK(reading_events_multithreaded_multiple_container_async)
-// // 	->ArgsProduct(
-// // 		{benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
-// // 									 CHUNK_SIZE_STEP),// Chunk size
-// // 		 benchmark::CreateDenseRange(INFLIGH_EVENTS_MIN, INFLIGH_EVENTS_MAX,
-// // 									 INFLIGH_EVENTS_STEP),// Inflight events
-// // 		 benchmark::CreateRange(THREADS_MIN, THREADS_MAX,
-// THREAD_MULTIPLIER)})
-// // 	->Repetitions(REPETITIONS)
-// // 	->Setup([](const benchmark::State&) { daos_init(); })
-// // 	->Teardown([](const benchmark::State&) { daos_fini(); });
-
-// // // BENCHMARK(reading_events_multithreaded_single_container)
-// // // 	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE,
-// MAX_CHUNK_SIZE,
-// // // 											   CHUNK_SIZE_STEP),// Chunk
-// size
-// // // 				   UNUSED_RANGE,
-// // // 				   benchmark::CreateRange(THREADS_MIN, THREADS_MAX,
-// // // 										  THREAD_MULTIPLIER)})// Used
-// cores
-// // // 	->Repetitions(REPETITIONS)
-// // // 	->Setup([](const benchmark::State&) { daos_init(); })
-// // // 	->Teardown([](const benchmark::State&) { daos_fini(); });
-
-// BENCHMARK(read_events_multithreaded_single_container_async)
-// 	->ArgsProduct({benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
-// 											   CHUNK_SIZE_STEP),// Chunk size
-// 				   UNUSED_RANGE,
-// 				   benchmark::CreateRange(THREADS_MIN, THREADS_MAX,
-// 										  THREAD_MULTIPLIER)})// Used cores
-// 	->Repetitions(REPETITIONS)
-// 	->Setup([](const benchmark::State&) { daos_init(); })
-// 	->Teardown([](const benchmark::State&) { daos_fini(); });
-
-// BENCHMARK(creating_events_multithreaded_single_container_async)
-//	->ArgsProduct(
-//		{benchmark::CreateDenseRange(MIN_CHUNK_SIZE, MAX_CHUNK_SIZE,
-//									 CHUNK_SIZE_STEP),// Chunk size
-//		 benchmark::CreateDenseRange(INFLIGH_EVENTS_MIN, INFLIGH_EVENTS_MAX,
-//									 INFLIGH_EVENTS_STEP),// Inflight events
-//		 benchmark::CreateRange(THREADS_MIN, THREADS_MAX, THREAD_MULTIPLIER)})
-//	->Repetitions(REPETITIONS)
-//	->Setup([](const benchmark::State&) { daos_init(); })
-//	->Teardown([](const benchmark::State&) { daos_fini(); });
-
-BENCHMARK_MAIN();
+int main(int argc, char** argv) {
+  benchmark::Initialize(&argc, argv);
+  if (benchmark::ReportUnrecognizedArguments(argc, argv))
+	return 1;
+  daos_init();
+  benchmark::RunSpecifiedBenchmarks();
+  benchmark::Shutdown();
+  daos_fini();
+  Config::close();
+  return 0;
+}
