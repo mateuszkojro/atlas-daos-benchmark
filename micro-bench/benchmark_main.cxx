@@ -446,7 +446,8 @@ int main(int argc, char** argv) {
   if (benchmark::ReportUnrecognizedArguments(argc, argv))
 	return 1;
   daos_init();
-  benchmark::RunSpecifiedBenchmarks();
+  benchmark::RunSpecifiedBenchmarks(
+	  Config::instance()->get()["basic"]["name_regex"].value_or("all"));
   benchmark::Shutdown();
   daos_fini();
   Config::close();
