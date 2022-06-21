@@ -7,6 +7,8 @@ fd_per_process = 200000
 [basic]
 repetitons          = 1
 repetitons_per_test = 1000
+generated_keys      = 1000
+generated_values    = 1000
 
 [daos]
 pool_label = "mkojro"
@@ -25,6 +27,6 @@ step       = 5
 
 [threads]
 range_type = "log"
-min  = 1
-max  = 96
-step = 4
+min        = 1
+max        = 96
+step       = 4

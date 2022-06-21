@@ -132,13 +132,15 @@ class Config {
 	// Initialisation
 	bench_print("Seeding random");
 	srand(time(NULL));
-	bench_check(try_set_open_fd_soft_limit(200'000) == 0,
+	bench_check(try_set_open_fd_soft_limit(
+					get()["system"]["fd_per_process"].value_or(1024))
+					== 0,
 				"Trying to increase fd count limit");
 	bench_check(bt_init() == 0, "Register backtrace handlers");
   }
   Config(std::string path) {
-	configure_system();
 	configuration_file_ = toml::parse_file(path);
+	configure_system();
   }
 
   static Config* instance_;
