@@ -147,12 +147,17 @@ Config* Config::instance_ = nullptr;
 
 class BenchmarkState {
  public:
-  BenchmarkState(size_t value_size, int events_inflight = -1)
-	  : pool_(std::make_unique<Pool>(POOL_LABEL)), value_size_(value_size),
-		keys_(KEYS_TO_GENERATE), values_(VALUES_TO_GENERATE) {
-	
-	config_ = Config::get_instance();
-	
+  BenchmarkState(size_t value_size, benchmark::State& state,
+				 int events_inflight = -1)
+	  : state_(state), pool_(std::make_unique<Pool>(POOL_LABEL)),
+		value_size_(value_size), keys_(KEYS_TO_GENERATE),
+		values_(VALUES_TO_GENERATE) {
+
+	config_ = Config::instance();
+
+	state_.counters["pooling_time_ns"] =
+		benchmark::Counter(0, benchmark::Counter::kAvgIterations);
+
 	// Initialise keys to random strings
 	for (auto& key : keys_) { key = std::to_string(rand()); }
 	// Initialise values with given size
@@ -193,8 +198,9 @@ class BenchmarkState {
   uint64_t wait_events() {
 	if (event_queue_) {
 	  event_queue_->wait();
-	  size_t waiting_time = event_queue_->waiting_time_.load();
+	  size_t waiting_time = event_queue_->waiting_time_;
 	  event_queue_->waiting_time_.store(0);
+	  state_.counters["pooling_time_ns"] += waiting_time;
 	  return waiting_time;
 	}
 	return 0;
@@ -203,6 +209,7 @@ class BenchmarkState {
   ~BenchmarkState() { pool_->remove_container(container_name_); }
 
  private:
+  benchmark::State& state_;
   Config* config_ = nullptr;
   static size_t container_counter;
   std::string container_name_;
@@ -221,7 +228,7 @@ using BenchmarkStatePtr = std::unique_ptr<BenchmarkState>;
 size_t BenchmarkState::container_counter = 0;
 
 static void baseline_BenchmarkState_usage(benchmark::State& state) {
-  BenchmarkState bstate(state.range(0));
+  BenchmarkState bstate(state.range(0), state);
   int i = 0;
   for (auto _ : state) {
 	const char* key = bstate.get_key(i);
@@ -236,30 +243,29 @@ static void baseline_BenchmarkState_usage(benchmark::State& state) {
 }
 
 static void write_event_blocking(benchmark::State& state) {
-  BenchmarkState bstate(state.range(0));
-  int i = 0;
+  BenchmarkState bstate(state.range(0), state);
   for (auto _ : state) {
-	i++;
-	bstate.get_kv_store()->write_raw(bstate.get_key(i), bstate.get_value(i),
-									 bstate.get_value_size());
+	for (int i = 0; i < REPETITIONS_PER_TEST; i++) {
+	  bstate.get_kv_store()->write_raw(bstate.get_key(i), bstate.get_value(i),
+									   bstate.get_value_size());
+	}
   }
 }
 
 static void creating_events_kv_async(benchmark::State& state) {
-  BenchmarkState bstate(state.range(0), state.range(1));
+  BenchmarkState bstate(state.range(0), state, state.range(1));
   for (auto _ : state) {
 	for (int i = 0; i < REPETITIONS_PER_TEST; i++) {
 	  bstate.get_kv_store()->write_raw(bstate.get_key(i), bstate.get_value(i),
 									   bstate.get_value_size(),
 									   bstate.get_event());
 	}
-	state.counters["pooling_time_ns"] +=
-		bstate.wait_events();// FIXMR: Thats not that
+	bstate.wait_events();
   }
 }
 
 static void creating_events_array(benchmark::State& state) {
-  BenchmarkState bstate(state.range(0));
+  BenchmarkState bstate(state.range(0), state);
   Pool pool(POOL_LABEL);
   std::string container_name = "benchmark_container";
   auto container = pool.add_container(container_name);
@@ -275,19 +281,19 @@ static void creating_events_array(benchmark::State& state) {
 }
 
 void do_write_(size_t requests_to_write, BenchmarkStatePtr& bstate) {
-  int i = 0;
-  while (requests_to_write--) {
+  for (int i = 0; i < requests_to_write; i++) {
 	bstate->get_kv_store()->write_raw(bstate->get_key(i), bstate->get_value(i),
-									  bstate->get_value_size());
-	i++;
+									  bstate->get_value_size(),
+									  bstate->get_event());
   }
+  bstate->wait_events();
 }
 
 static void creating_events_multithreaded_single_container(
 	benchmark::State& state) {
   size_t requests_to_send = REPETITIONS_PER_TEST;
   int number_of_threads = state.range(2);
-  auto bstate = std::make_unique<BenchmarkState>(state.range(0));
+  auto bstate = std::make_unique<BenchmarkState>(state.range(0), state);
   for (auto _ : state) {
 	std::vector<std::thread> threads;
 	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
@@ -306,7 +312,7 @@ static void creating_events_multithreaded_single_container_async(
   size_t requests_to_send = REPETITIONS_PER_TEST;
   int number_of_threads = state.range(2);
   auto bstate =
-	  std::make_unique<BenchmarkState>(state.range(0), state.range(1));
+	  std::make_unique<BenchmarkState>(state.range(0), state, state.range(1));
   for (auto _ : state) {
 	std::vector<std::thread> threads;
 	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
@@ -326,7 +332,8 @@ static void creating_events_multitreaded_multiple_containers(
 
   std::vector<std::unique_ptr<BenchmarkState>> states;
   for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	states.emplace_back(std::make_unique<BenchmarkState>(state.range(0)));
+	states.emplace_back(
+		std::make_unique<BenchmarkState>(state.range(0), state));
   }
 
   for (auto _ : state) {
@@ -349,8 +356,8 @@ static void creating_events_multitreaded_multiple_containers_async(
 
   std::vector<std::unique_ptr<BenchmarkState>> states;
   for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	states.emplace_back(
-		std::make_unique<BenchmarkState>(state.range(0), state.range(1)));
+	states.emplace_back(std::make_unique<BenchmarkState>(state.range(0), state,
+														 state.range(1)));
   }
 
   for (auto _ : state) {
