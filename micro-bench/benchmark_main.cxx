@@ -245,6 +245,7 @@ static void baseline_BenchmarkState_usage(benchmark::State& state) {
 	benchmark::DoNotOptimize(value);
 	benchmark::DoNotOptimize(size);
 	benchmark::DoNotOptimize(kv);
+	i++;
   }
 }
 
@@ -400,46 +401,37 @@ void do_read(std::atomic_int32_t& sent_requests, BenchmarkStatePtr& bstate) {
   delete[] buffer;
 }
 
-
 BENCHMARK(baseline_BenchmarkState_usage)
-	->ArgsProduct(Config::instance()->get_range(Config::NONE))
-	->Repetitions(REPETITIONS);
+	->ArgsProduct(Config::instance()->get_range(Config::NONE));
 
 BENCHMARK(creating_events_array)
-	->ArgsProduct(Config::instance()->get_range(Config::WITH_CHNUK_SIZE))
-	->Repetitions(REPETITIONS);
+	->ArgsProduct(Config::instance()->get_range(Config::WITH_CHNUK_SIZE));
 
 BENCHMARK(write_event_blocking)
-	->ArgsProduct(Config::instance()->get_range(Config::WITH_CHNUK_SIZE))
-	->Repetitions(REPETITIONS);
+	->ArgsProduct(Config::instance()->get_range(Config::WITH_CHNUK_SIZE));
 
 BENCHMARK(creating_events_kv_async)
 	->ArgsProduct(Config::instance()->get_range(Config::WITH_CHNUK_SIZE
-												| Config::WITH_EVENTS))
-	->Repetitions(REPETITIONS);
+												| Config::WITH_EVENTS));
 
 BENCHMARK(creating_events_multitreaded_multiple_containers)
 	->ArgsProduct(Config::instance()->get_range(Config::WITH_CHNUK_SIZE
-												| Config::WITH_THREADS))
-	->Repetitions(REPETITIONS);
+												| Config::WITH_THREADS));
 
 BENCHMARK(creating_events_multitreaded_multiple_containers_async)
 	->ArgsProduct(Config::instance()->get_range(Config::WITH_CHNUK_SIZE
 												| Config::WITH_EVENTS
-												| Config::WITH_THREADS))
-	->Repetitions(REPETITIONS);
+												| Config::WITH_THREADS));
 
 BENCHMARK(creating_events_multithreaded_single_container)
 	->ArgsProduct(Config::instance()->get_range(Config::WITH_CHNUK_SIZE
 												| Config::WITH_EVENTS
-												| Config::WITH_THREADS))
-	->Repetitions(REPETITIONS);
+												| Config::WITH_THREADS));
 
 BENCHMARK(creating_events_multithreaded_single_container_async)
 	->ArgsProduct(Config::instance()->get_range(Config::WITH_CHNUK_SIZE
 												| Config::WITH_EVENTS
-												| Config::WITH_THREADS))
-	->Repetitions(REPETITIONS);
+												| Config::WITH_THREADS));
 
 int main(int argc, char** argv) {
   benchmark::Initialize(&argc, argv);
