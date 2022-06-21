@@ -150,7 +150,10 @@ class BenchmarkState {
  public:
   BenchmarkState(size_t value_size, benchmark::State& state,
 				 int events_inflight = -1)
-	  : state_(state), pool_(std::make_unique<Pool>(POOL_LABEL)),
+	  : state_(state),
+		pool_(std::make_unique<Pool>(
+			Config::instance()->get()["daos"]["pool_label"].value_or(
+				"mkojro"))),
 		value_size_(value_size), keys_(KEYS_TO_GENERATE),
 		values_(VALUES_TO_GENERATE) {
 
