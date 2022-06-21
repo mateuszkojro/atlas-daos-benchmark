@@ -59,15 +59,15 @@ error:
 #define bench_print(format_string) printf("[bench] " format_string "\n")
 
 #define bench_printf(format_string, ...)                                       \
-  printf("[bench] " format_string "\n", __VA_ARGS__)
+  fprintf(stderr, "[bench] " format_string "\n", __VA_ARGS__)
 
-#define bench_ensure(condition, description)                                   \
+#define bench_check(condition, name)                                           \
   do {                                                                         \
-	std::cout << "[bench] " << description << "\t:\t";                                    \
+	fprintf(stderr, "[bench] %-64s\t", name);                                  \
 	if (condition) {                                                           \
-	  std::cout << "OK\n";                                                     \
+	  fprintf(stderr, "\033[1;92mOK\033[0m\n");                                \
 	} else {                                                                   \
-	  std::cout << "FAIL\n";                                                   \
+	  fprintf(stderr, "\033[1;31mERR\033[0m\n");                               \
 	}                                                                          \
   } while (false)
 
