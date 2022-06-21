@@ -131,13 +131,14 @@ class SCP(Program):
         self.run_command([src, dst])
 
 
-def run_on_cluster(cmake: CMake,
+def copy_to_cluster(cmake: CMake,
                    cluster_hostname="olsky-02",
-                   cluster_dir="~/"):
-    cmake.configure()
+                   cluster_dir="/data/mkojro"):
+    # cmake.configure()
     cmake.build()
-    SCP().copy("./build/bench/bench", f"{cluster_hostname}:{cluster_dir}")
-    SSH("olsky-02").exec("./bench")
+    SCP().copy("./build/micro-bench/bench", f"{cluster_hostname}:{cluster_dir}")
+    SCP().copy("./micro_benchmark_config.toml", f"{cluster_hostname}:{cluster_dir}")
+    # SSH("olsky-02").exec("./bench")
 
 
 def docker_compile_and_copy(docker: Docker):
@@ -176,8 +177,8 @@ if __name__ == '__main__':
     parser.add_argument("--clean", action='store_true',
                         help="Remove the build directory")
 
-    parser.add_argument("--cluster_run", action='store_true',
-                        help="Configure and compile CMake project than copy it to the cluster and run")
+    parser.add_argument("--cluster_copy", action='store_true',
+                        help="Configure and compile CMake project than copy it to the cluster")
 
     parser.add_argument("--build_in_docker", action='store_true', help="")
 
@@ -218,8 +219,8 @@ if __name__ == '__main__':
     if args.docker_build:
         docker.build(".", "adb")
 
-    if args.cluster_run:
-        run_on_cluster(cmake)
+    if args.cluster_copy:
+        copy_to_cluster(cmake)
 
     if args.build_in_docker:
         docker_compile_and_copy(docker)
