@@ -1,0 +1,30 @@
+title       = "Basic benchmark"
+description = ""
+
+[system]
+fd_per_process = 200000
+
+[basic]
+repetitons          = 1
+repetitons_per_test = 1000
+
+[daos]
+pool_label = "mkojro"
+
+[chunk_size]
+range_type = "dense"
+min        = 1024
+max        = 20480
+step       = 1024
+
+[inflight_events]
+range_type = "log"
+min        = 1
+max        = 200
+step       = 5
+
+[threads]
+range_type = "log"
+min  = 1
+max  = 96
+step = 4
