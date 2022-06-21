@@ -7,3 +7,6 @@
 [submodule "lib/c-backtrace"]
 	path = lib/c-backtrace
 	url = https://github.com/mateuszkojro/c-backtrace
+[submodule "lib/tomlplusplus"]
+	path = lib/tomlplusplus
+	url = https://github.com/marzer/tomlplusplus
