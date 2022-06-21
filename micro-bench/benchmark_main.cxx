@@ -89,12 +89,13 @@ class Config {
 	return instance_;
   }
 
+  const toml::parse_result& get() { return configuration_file_; }
+
   std::vector<int64_t> get_range_for_variable(std::string variable) {
-	std::string range_type =
-		configuration_file_[variable]["range_type"].value_or("log");
-	auto min = configuration_file_[variable]["min"].value_or(1);
-	auto max = configuration_file_[variable]["max"].value_or(1);
-	auto step = configuration_file_[variable]["step"].value_or(2);
+	std::string range_type = get()[variable]["range_type"].value_or("log");
+	auto min = get()[variable]["min"].value_or(1);
+	auto max = get()[variable]["max"].value_or(1);
+	auto step = get()[variable]["step"].value_or(2);
 	std::vector<int64_t> range;
 	if (range_type == "log") {
 	  range = benchmark::CreateRange(min, max, step);
