@@ -1,0 +1,30 @@
+default:
+  image: ubuntu:20.04
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_UPDATE_FLAGS: --jobs 4
+
+stages:
+  - build
+  - build_benchmarks
+
+build-daos:
+  stage: build
+  script:
+    - echo "APT::Get::Assume-Yes \"true\";" > /etc/apt/apt.conf.d/no-prompt
+    - export DEBIAN_FRONTEND=noninteractive
+    - apt update
+    - apt-get install -y scons 
+    - apt install python3 python3-pip cmake clang tzdata
+    - ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
+    - dpkg-reconfigure --frontend noninteractive tzdata
+    - pip install distro
+    - alias scons-3=scons
+    - ./lib/daos-cxx/lib/daos/utils/scripts/install-ubuntu20.sh
+    - pushd lib/daos-cxx/
+    - ./make_daos.sh
+    - ./configure.sh
+    - cmake --build ./build -j
+    - popd
+    - python3 ./metabuild.py --configure --build
