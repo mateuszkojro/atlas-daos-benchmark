@@ -30,7 +30,6 @@
 #define UNUSED_RANGE benchmark::CreateDenseRange(1, 1, 1)
 #define BENCHMARK_POOLING
 
-const size_t REPETITIONS = 1;
 const size_t REPETITIONS_PER_TEST = 1'000;
 int KEYS_TO_GENERATE = REPETITIONS_PER_TEST;
 int VALUES_TO_GENERATE = KEYS_TO_GENERATE;
@@ -273,7 +272,7 @@ static void creating_events_kv_async(benchmark::State& state) {
 
 static void creating_events_array(benchmark::State& state) {
   BenchmarkState bstate(state.range(0), state);
-  Pool pool(POOL_LABEL);
+  Pool pool(Config::instance()->get()["daos"]["pool_label"].value_or("mkojro"));
   std::string container_name = "benchmark_container";
   auto container = pool.add_container(container_name);
   auto array_store = container->create_array();
@@ -379,8 +378,6 @@ static void creating_events_multitreaded_multiple_containers_async(
 	}
   }
 }
-
-// TODO: now do the same thing with read benchmarks
 
 void create_events(BenchmarkStatePtr& bstate) {
   for (const auto& key : bstate->get_keys()) {
