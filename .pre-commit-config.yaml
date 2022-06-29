@@ -1,18 +1,19 @@
 fail_fast: false
 repos:
-  - repo: local
-    hooks:
-      - id: build_project
-        name: build_project
-        entry: docker
-        language: system
-        args: ['build', '--rm', '.', '-t', 'adb:v1']
-        always_run: true
-        require_serial: true
-        pass_filenames: false
-#   - repo: https://github.com/pocc/pre-commit-hooks
-#     rev: v1.3.5
-#     hooks:
-#       - id: clang-format
-#         args: [-i]
-#       - id: clang-tidy
+  #  - repo: local
+  #    hooks:
+  #      - id: build_project
+  #        name: build_project
+  #        entry: ./metabuild.py
+  #        language: system
+  #        args: ['--configure', '--build']
+  #        always_run: true
+  #        require_serial: true
+  #        pass_filenames: false
+   - repo: https://github.com/pocc/pre-commit-hooks
+     rev: v1.3.5
+     hooks:
+       - id: clang-format
+         args: ['-i']
+       - id: clang-tidy
+         args: ['-p=./build/compile_commands.json']
