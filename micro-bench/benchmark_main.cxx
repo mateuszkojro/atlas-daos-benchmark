@@ -21,6 +21,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <ratio>
 #include <stdexcept>
 #include <string>
 #include <sys/resource.h>
@@ -211,6 +212,10 @@ class BenchmarkState {
 	return 0;
   }
 
+  void start_benchmark() { should_start_.store(true); }
+
+  bool benchmark_should_start() { return should_start_; }
+
   ~BenchmarkState() { pool_->remove_container(container_name_); }
 
  private:
@@ -227,6 +232,8 @@ class BenchmarkState {
   size_t value_size_;
   std::vector<std::string> keys_;
   std::vector<std::vector<char>> values_;
+
+  std::atomic_bool should_start_{false};
 };
 
 using BenchmarkStatePtr = std::unique_ptr<BenchmarkState>;
@@ -286,7 +293,11 @@ static void creating_events_array(benchmark::State& state) {
   pool.remove_container(container_name);
 }
 
-void do_write_(size_t requests_to_write, BenchmarkStatePtr& bstate) {
+void do_write(size_t requests_to_write, BenchmarkStatePtr& bstate) {
+  while (!bstate->benchmark_should_start()) {
+	// Wait for begining of benchmark
+	std::this_thread::sleep_for(std::chrono::nanoseconds(10));
+  }
   for (int i = 0; i < requests_to_write; i++) {
 	bstate->get_kv_store()->write_raw(bstate->get_key(i), bstate->get_value(i),
 									  bstate->get_value_size(),
@@ -300,12 +311,13 @@ static void creating_events_multithreaded_single_container(
   size_t requests_to_send = REPETITIONS_PER_TEST;
   int number_of_threads = state.range(2);
   auto bstate = std::make_unique<BenchmarkState>(state.range(0), state);
+  std::vector<std::thread> threads;
+  for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	threads.emplace_back(do_write, requests_to_send / number_of_threads,
+						 std::ref(bstate));
+  }
   for (auto _ : state) {
-	std::vector<std::thread> threads;
-	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	  threads.emplace_back(do_write_, requests_to_send / number_of_threads,
-						   std::ref(bstate));
-	}
+	bstate->start_benchmark();
 	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
 	  threads[thread_n].join();
 	}
@@ -319,12 +331,13 @@ static void creating_events_multithreaded_single_container_async(
   int number_of_threads = state.range(2);
   auto bstate =
 	  std::make_unique<BenchmarkState>(state.range(0), state, state.range(1));
+  std::vector<std::thread> threads;
+  for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	threads.emplace_back(do_write, requests_to_send / number_of_threads,
+						 std::ref(bstate));
+  }
   for (auto _ : state) {
-	std::vector<std::thread> threads;
-	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	  threads.emplace_back(do_write_, requests_to_send / number_of_threads,
-						   std::ref(bstate));
-	}
+	bstate->start_benchmark();
 	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
 	  threads[thread_n].join();
 	}
@@ -341,14 +354,14 @@ static void creating_events_multitreaded_multiple_containers(
 	states.emplace_back(
 		std::make_unique<BenchmarkState>(state.range(0), state));
   }
-
+  std::vector<std::thread> threads;
+  for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	auto& bstate = states[thread_n];
+	threads.emplace_back(do_write, requests_to_send / number_of_threads,
+						 std::ref(bstate));
+  }
   for (auto _ : state) {
-	std::vector<std::thread> threads;
-	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	  auto& bstate = states[thread_n];
-	  threads.emplace_back(do_write_, requests_to_send / number_of_threads,
-						   std::ref(bstate));
-	}
+	for (auto& bstate : states) { bstate->start_benchmark(); }
 	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
 	  threads[thread_n].join();
 	}
@@ -366,13 +379,14 @@ static void creating_events_multitreaded_multiple_containers_async(
 														 state.range(1)));
   }
 
+  std::vector<std::thread> threads;
+  for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
+	auto& bstate = states[thread_n];
+	threads.emplace_back(do_write, requests_to_send / number_of_threads,
+						 std::ref(bstate));
+  }
   for (auto _ : state) {
-	std::vector<std::thread> threads;
-	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
-	  auto& bstate = states[thread_n];
-	  threads.emplace_back(do_write_, requests_to_send / number_of_threads,
-						   std::ref(bstate));
-	}
+	for (auto& bstate : states) { bstate->start_benchmark(); }
 	for (int thread_n = 0; thread_n < number_of_threads; thread_n++) {
 	  threads[thread_n].join();
 	}
